@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// DIMENSION TABLES
+// ============================================================
+
+model DimRegion {
+  id            Int      @id @default(autoincrement())
+  kodeWilayah   String   @unique @map("kode_wilayah") @db.VarChar(10)
+  namaProvinsi  String   @map("nama_provinsi") @db.VarChar(100)
+  namaKabKota   String?  @map("nama_kab_kota") @db.VarChar(100)
+  levelWilayah  String   @map("level_wilayah") @db.VarChar(20)
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  inflationMonthly  FactInflationMonthly[]
+  priceDaily        FactPriceDaily[]
+  supplyStock       FactSupplyStock[]
+  climate           FactClimate[]
+  riskScores        AnalyticsRiskScore[]
+  alerts            AnalyticsAlert[]
+
+  @@index([levelWilayah], name: "idx_region_level")
+  @@index([namaProvinsi], name: "idx_region_provinsi")
+  @@map("dim_region")
+}
+
+model DimCommodity {
+  id             Int      @id @default(autoincrement())
+  kodeKomoditas  String   @unique @map("kode_komoditas") @db.VarChar(20)
+  namaKomoditas  String   @map("nama_komoditas") @db.VarChar(100)
+  namaDisplay    String   @map("nama_display") @db.VarChar(100)
+  kategori       String   @db.VarChar(50)
+  satuan         String   @db.VarChar(20)
+  isStrategis    Boolean  @default(false) @map("is_strategis")
+  isMvp          Boolean  @default(true) @map("is_mvp")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  inflationMonthly  FactInflationMonthly[]
+  priceDaily        FactPriceDaily[]
+  supplyStock       FactSupplyStock[]
+  riskScores        AnalyticsRiskScore[]
+  alerts            AnalyticsAlert[]
+
+  @@map("dim_commodity")
+}
+
+model DimCalendar {
+  tanggal     DateTime @id @db.Date
+  tahun       Int
+  bulan       Int
+  mingguKe    Int      @map("minggu_ke")
+  hariKe      Int      @map("hari_ke")
+  namaHari    String   @map("nama_hari") @db.VarChar(20)
+  isWeekend   Boolean  @default(false) @map("is_weekend")
+  isHariLibur Boolean  @default(false) @map("is_hari_libur")
+  namaLibur   String?  @map("nama_libur") @db.VarChar(100)
+  musim       String?  @db.VarChar(50) // ramadan, idulfitri, nataru, panen_raya, paceklik, normal
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("dim_calendar")
+}
+
+// ============================================================
+// FACT TABLES
+// ============================================================
+
+model FactInflationMonthly {
+  id            Int       @id @default(autoincrement())
+  periode       DateTime  @db.Date
+  regionId      Int       @map("region_id")
+  levelWilayah  String    @map("level_wilayah") @db.VarChar(20)
+  ihk           Decimal?  @db.Decimal(10, 2)
+  inflasiMtm    Decimal?  @map("inflasi_mtm") @db.Decimal(8, 4)
+  inflasiYtd    Decimal?  @map("inflasi_ytd") @db.Decimal(8, 4)
+  inflasiYoy    Decimal?  @map("inflasi_yoy") @db.Decimal(8, 4)
+  kelompok      String?   @db.VarChar(100)
+  commodityId   Int?      @map("commodity_id")
+  andil         Decimal?  @db.Decimal(8, 4)
+  sumber        String    @default("BPS") @db.VarChar(50)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  region    DimRegion     @relation(fields: [regionId], references: [id])
+  commodity DimCommodity? @relation(fields: [commodityId], references: [id])
+
+  @@unique([periode, regionId, kelompok, commodityId], name: "uq_inflation")
+  @@index([periode], name: "idx_inflation_periode")
+  @@index([regionId], name: "idx_inflation_region")
+  @@index([commodityId], name: "idx_inflation_commodity")
+  @@map("fact_inflation_monthly")
+}
+
+model FactPriceDaily {
+  id                 Int       @id @default(autoincrement())
+  tanggal            DateTime  @db.Date
+  regionId           Int       @map("region_id")
+  commodityId        Int       @map("commodity_id")
+  harga              Decimal   @db.Decimal(12, 2)
+  hargaKemarin       Decimal?  @map("harga_kemarin") @db.Decimal(12, 2)
+  perubahanHarian    Decimal?  @map("perubahan_harian") @db.Decimal(8, 4)
+  perubahanMingguan  Decimal?  @map("perubahan_mingguan") @db.Decimal(8, 4)
+  perubahanBulanan   Decimal?  @map("perubahan_bulanan") @db.Decimal(8, 4)
+  sumber             String    @default("PIHPS_BI") @db.VarChar(50)
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  region    DimRegion    @relation(fields: [regionId], references: [id])
+  commodity DimCommodity @relation(fields: [commodityId], references: [id])
+
+  @@unique([tanggal, regionId, commodityId], name: "uq_price_daily")
+  @@index([tanggal], name: "idx_price_tanggal")
+  @@index([commodityId], name: "idx_price_commodity")
+  @@index([regionId], name: "idx_price_region")
+  @@index([tanggal, commodityId], name: "idx_price_tanggal_commodity")
+  @@map("fact_price_daily")
+}
+
+model FactSupplyStock {
+  id          Int       @id @default(autoincrement())
+  tanggal     DateTime  @db.Date
+  regionId    Int       @map("region_id")
+  commodityId Int       @map("commodity_id")
+  stok        Decimal?  @db.Decimal(15, 2)
+  cadangan    Decimal?  @db.Decimal(15, 2)
+  status      String?   @db.VarChar(20) // aman, waspada, kritis
+  sumber      String    @default("BAPANAS") @db.VarChar(50)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  region    DimRegion    @relation(fields: [regionId], references: [id])
+  commodity DimCommodity @relation(fields: [commodityId], references: [id])
+
+  @@unique([tanggal, regionId, commodityId], name: "uq_supply_stock")
+  @@map("fact_supply_stock")
+}
+
+model FactMacroDriver {
+  id            Int       @id @default(autoincrement())
+  tanggal       DateTime  @unique @db.Date
+  kursUsdIdr    Decimal?  @map("kurs_usd_idr") @db.Decimal(12, 2)
+  kursChangePct Decimal?  @map("kurs_change_pct") @db.Decimal(8, 4)
+  hargaBbm      Decimal?  @map("harga_bbm") @db.Decimal(10, 2)
+  sumberKurs    String    @default("BI_JISDOR") @map("sumber_kurs") @db.VarChar(50)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([tanggal], name: "idx_macro_tanggal")
+  @@map("fact_macro_driver")
+}
+
+model FactClimate {
+  id           Int       @id @default(autoincrement())
+  tanggal      DateTime  @db.Date
+  regionId     Int       @map("region_id")
+  curahHujan   Decimal?  @map("curah_hujan") @db.Decimal(8, 2)
+  suhuRata     Decimal?  @map("suhu_rata") @db.Decimal(5, 2)
+  anomaliCuaca String?   @map("anomali_cuaca") @db.VarChar(100)
+  warningLevel String?   @map("warning_level") @db.VarChar(20)
+  sumber       String    @default("BMKG") @db.VarChar(50)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  region DimRegion @relation(fields: [regionId], references: [id])
+
+  @@unique([tanggal, regionId], name: "uq_climate")
+  @@index([tanggal], name: "idx_climate_tanggal")
+  @@index([regionId], name: "idx_climate_region")
+  @@map("fact_climate")
+}
+
+// ============================================================
+// ANALYTICS TABLES (Derived)
+// ============================================================
+
+model AnalyticsRiskScore {
+  id                  Int       @id @default(autoincrement())
+  tanggal             DateTime  @db.Date
+  regionId            Int       @map("region_id")
+  commodityId         Int       @map("commodity_id")
+  skorKenaikan7d      Decimal?  @map("skor_kenaikan_7d") @db.Decimal(5, 2)
+  skorKenaikan30d     Decimal?  @map("skor_kenaikan_30d") @db.Decimal(5, 2)
+  skorVolatilitas     Decimal?  @map("skor_volatilitas") @db.Decimal(5, 2)
+  skorDeviasiWilayah  Decimal?  @map("skor_deviasi_wilayah") @db.Decimal(5, 2)
+  skorCuaca           Decimal?  @map("skor_cuaca") @db.Decimal(5, 2)
+  skorStok            Decimal?  @map("skor_stok") @db.Decimal(5, 2)
+  riskScoreTotal      Decimal?  @map("risk_score_total") @db.Decimal(5, 2)
+  riskCategory        String?   @map("risk_category") @db.VarChar(20)
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  region    DimRegion    @relation(fields: [regionId], references: [id])
+  commodity DimCommodity @relation(fields: [commodityId], references: [id])
+
+  @@unique([tanggal, regionId, commodityId], name: "uq_risk_score")
+  @@map("analytics_risk_score")
+}
+
+model AnalyticsAlert {
+  id             Int       @id @default(autoincrement())
+  tanggal        DateTime  @db.Date
+  regionId       Int       @map("region_id")
+  commodityId    Int       @map("commodity_id")
+  alertType      String    @map("alert_type") @db.VarChar(50)
+  severity       String    @db.VarChar(20)
+  judul          String    @db.VarChar(200)
+  deskripsi      String    @db.Text
+  nilaiAktual    Decimal?  @map("nilai_aktual") @db.Decimal(12, 2)
+  nilaiThreshold Decimal?  @map("nilai_threshold") @db.Decimal(12, 2)
+  isActive       Boolean   @default(true) @map("is_active")
+  resolvedAt     DateTime? @map("resolved_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  region    DimRegion    @relation(fields: [regionId], references: [id])
+  commodity DimCommodity @relation(fields: [commodityId], references: [id])
+
+  @@index([isActive, tanggal], name: "idx_alerts_active")
+  @@index([severity], name: "idx_alerts_severity")
+  @@map("analytics_alerts")
+}
+
+model AnalyticsInsight {
+  id           Int       @id @default(autoincrement())
+  tanggal      DateTime  @db.Date
+  tipe         String    @db.VarChar(20)
+  judul        String    @db.VarChar(200)
+  konten       String    @db.Text
+  dataSnapshot Json?     @map("data_snapshot")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("analytics_insights")
+}

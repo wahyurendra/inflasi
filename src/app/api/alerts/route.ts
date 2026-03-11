@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const active = searchParams.get("active") !== "false";
+  const severity = searchParams.get("severity");
+  const limit = parseInt(searchParams.get("limit") || "20");
+
+  try {
+    const alerts = await prisma.analyticsAlert.findMany({
+      where: {
+        isActive: active ? true : undefined,
+        severity: severity || undefined,
+      },
+      include: {
+        region: true,
+        commodity: true,
+      },
+      orderBy: [{ severity: "asc" }, { tanggal: "desc" }],
+      take: limit,
+    });
+
+    return NextResponse.json({
+      data: alerts.map((a) => ({
+        id: a.id,
+        tanggal: a.tanggal.toISOString().slice(0, 10),
+        alertType: a.alertType,
+        severity: a.severity,
+        judul: a.judul,
+        deskripsi: a.deskripsi,
+        nilaiAktual: a.nilaiAktual ? Number(a.nilaiAktual) : null,
+        nilaiThreshold: a.nilaiThreshold ? Number(a.nilaiThreshold) : null,
+        isActive: a.isActive,
+        region: {
+          kode: a.region.kodeWilayah,
+          nama: a.region.namaProvinsi,
+        },
+        commodity: {
+          kode: a.commodity.kodeKomoditas,
+          nama: a.commodity.namaDisplay,
+        },
+      })),
+      count: alerts.length,
+    });
+  } catch {
+    // DB not connected — return mock
+    return NextResponse.json({
+      data: [
+        { id: 1, tanggal: "2026-03-10", alertType: "price_spike", severity: "critical", judul: "Cabai rawit: spike +12% / 7 hari (5 provinsi)", deskripsi: "Harga cabai rawit naik 12% dalam 7 hari di 5 provinsi.", isActive: true, region: { kode: "00", nama: "Nasional" }, commodity: { kode: "CABAI_RAWIT", nama: "Cabai Rawit" }, nilaiAktual: 12.0, nilaiThreshold: 10.0 },
+        { id: 2, tanggal: "2026-03-09", alertType: "sustained_volatile", severity: "warning", judul: "Bawang merah: volatilitas tinggi 2 minggu", deskripsi: "CV 18.3% selama 14 hari (threshold: 15%).", isActive: true, region: { kode: "00", nama: "Nasional" }, commodity: { kode: "BAWANG_MERAH", nama: "Bawang Merah" }, nilaiAktual: 18.3, nilaiThreshold: 15.0 },
+        { id: 3, tanggal: "2026-03-09", alertType: "multi_commodity", severity: "critical", judul: "Papua: 3 komoditas naik >5% bersamaan", deskripsi: "Beras +5%, telur +7%, gula +4% dalam 7 hari.", isActive: true, region: { kode: "91", nama: "Papua" }, commodity: { kode: "BERAS", nama: "Beras" }, nilaiAktual: 3, nilaiThreshold: 3 },
+      ],
+      count: 3,
+      source: "mock",
+    });
+  }
+}
