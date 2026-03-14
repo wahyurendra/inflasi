@@ -2,25 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-const mockStats = {
-  totalUsers: 156,
-  activeUsers: 142,
-  totalReports: 1847,
-  pendingReports: 23,
-  approvedReports: 1689,
-  rejectedReports: 98,
-  flaggedReports: 37,
-  reportsToday: 12,
-  reportsThisWeek: 67,
-  reportsThisMonth: 284,
-  usersByRole: {
-    ADMIN: 2,
-    GOVERNMENT_ANALYST: 8,
-    REGIONAL_OFFICER: 15,
-    REPORTER: 131,
-  },
-};
-
 export async function GET() {
   try {
     const session = await auth();
@@ -86,7 +67,8 @@ export async function GET() {
         },
       },
     });
-  } catch {
-    return NextResponse.json({ data: mockStats, source: "mock" });
+  } catch (error) {
+    console.error("Admin stats error:", error);
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 }

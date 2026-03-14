@@ -1,19 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-const mockVolatility = [
-  { commodity: "Cabai Rawit", kode: "CABAI_RAWIT", cv: 18.5, trend: "up" },
-  { commodity: "Cabai Merah", kode: "CABAI_MERAH", cv: 15.2, trend: "up" },
-  { commodity: "Bawang Merah", kode: "BAWANG_MERAH", cv: 12.8, trend: "stable" },
-  { commodity: "Bawang Putih", kode: "BAWANG_PUTIH", cv: 9.4, trend: "down" },
-  { commodity: "Telur Ayam", kode: "TELUR_AYAM", cv: 7.1, trend: "stable" },
-  { commodity: "Daging Ayam", kode: "DAGING_AYAM", cv: 6.8, trend: "up" },
-  { commodity: "Minyak Goreng", kode: "MINYAK_GORENG", cv: 4.2, trend: "stable" },
-  { commodity: "Gula Pasir", kode: "GULA_PASIR", cv: 3.5, trend: "stable" },
-  { commodity: "Beras", kode: "BERAS", cv: 2.8, trend: "stable" },
-  { commodity: "Daging Sapi", kode: "DAGING_SAPI", cv: 5.1, trend: "up" },
-];
-
 export async function GET() {
   try {
     const commodities = await prisma.dimCommodity.findMany({
@@ -43,7 +30,8 @@ export async function GET() {
 
     data.sort((a, b) => b.cv - a.cv);
     return NextResponse.json({ data });
-  } catch {
-    return NextResponse.json({ data: mockVolatility, source: "mock" });
+  } catch (error) {
+    console.error("Volatility error:", error);
+    return NextResponse.json({ data: [], error: "Database error" }, { status: 500 });
   }
 }

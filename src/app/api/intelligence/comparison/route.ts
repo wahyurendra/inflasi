@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-const mockComparison = [
-  { region: "DKI Jakarta", kode: "31", beras: 14500, cabaiMerah: 42000, cabaiRawit: 55000, bawangMerah: 35000, telurAyam: 28000 },
-  { region: "Jawa Barat", kode: "32", beras: 13800, cabaiMerah: 38000, cabaiRawit: 48000, bawangMerah: 32000, telurAyam: 27000 },
-  { region: "Jawa Tengah", kode: "33", beras: 13200, cabaiMerah: 35000, cabaiRawit: 45000, bawangMerah: 30000, telurAyam: 26500 },
-  { region: "Jawa Timur", kode: "35", beras: 13500, cabaiMerah: 36000, cabaiRawit: 46000, bawangMerah: 31000, telurAyam: 26000 },
-  { region: "Sumatera Utara", kode: "12", beras: 14800, cabaiMerah: 44000, cabaiRawit: 58000, bawangMerah: 38000, telurAyam: 29000 },
-  { region: "Sulawesi Selatan", kode: "73", beras: 13000, cabaiMerah: 40000, cabaiRawit: 52000, bawangMerah: 34000, telurAyam: 27500 },
-  { region: "Bali", kode: "51", beras: 14200, cabaiMerah: 45000, cabaiRawit: 60000, bawangMerah: 36000, telurAyam: 28500 },
-  { region: "Kalimantan Timur", kode: "64", beras: 15000, cabaiMerah: 48000, cabaiRawit: 62000, bawangMerah: 40000, telurAyam: 30000 },
-  { region: "Papua", kode: "91", beras: 18000, cabaiMerah: 55000, cabaiRawit: 70000, bawangMerah: 45000, telurAyam: 35000 },
-];
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const commodity = searchParams.get("commodity");
@@ -46,8 +34,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data });
     }
 
-    return NextResponse.json({ data: mockComparison });
-  } catch {
-    return NextResponse.json({ data: mockComparison, source: "mock" });
+    // No commodity specified: get cross-commodity comparison per region
+    const commodities = await prisma.dimCommodity.findMany({ where: { isMvp: true } });
+    const regions = await prisma.dimRegion.findMany({
+      where: { levelWilayah: "provinsi" },
+    });
+
+    const prices = await prisma.factPriceDaily.findMany({
+      where: { tanggal: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      select: { regionId: true, commodityId: true, harga: true },
+    });
+
+    const priceMap = new Map<string, number[]>();
+    for (const p of prices) {
+      const key = `${p.regionId}-${p.commodityId}`;
+      const arr = priceMap.get(key) || [];
+      arr.push(Number(p.harga));
+      priceMap.set(key, arr);
+    }
+
+    const data = regions.slice(0, 10).map((r) => {
+      const row: Record<string, unknown> = { region: r.namaProvinsi, kode: r.kodeWilayah };
+      for (const c of commodities) {
+        const key = `${r.id}-${c.id}`;
+        const arr = priceMap.get(key);
+        row[c.kodeKomoditas.toLowerCase()] = arr ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+      }
+      return row;
+    });
+
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error("Comparison error:", error);
+    return NextResponse.json({ data: [], error: "Database error" }, { status: 500 });
   }
 }

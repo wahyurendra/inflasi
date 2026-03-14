@@ -1,51 +1,6 @@
-import { AlertTriangle } from "lucide-react";
+"use client";
 
-const mockAlerts = [
-  {
-    id: 1,
-    tanggal: "10 Mar 2026",
-    severity: "critical",
-    judul: "Cabai rawit: Kenaikan harga 12% dalam 7 hari",
-    deskripsi:
-      "Harga cabai rawit naik 12% dalam 7 hari terakhir di 5 provinsi. Wilayah terdampak: Jawa Barat, Jawa Timur, Jawa Tengah, Sumatera Utara, Lampung. Harga saat ini: Rp 85.000/kg (median nasional).",
-    komoditas: "Cabai Rawit",
-    wilayah: "5 provinsi",
-    nilaiAktual: 12.0,
-  },
-  {
-    id: 2,
-    tanggal: "9 Mar 2026",
-    severity: "warning",
-    judul: "Bawang merah: Volatilitas tinggi 2 minggu berturut",
-    deskripsi:
-      "Bawang merah menunjukkan CV 18.3% selama 14 hari terakhir (threshold: 15%). Terutama di wilayah Brebes dan Nganjuk.",
-    komoditas: "Bawang Merah",
-    wilayah: "Nasional",
-    nilaiAktual: 18.3,
-  },
-  {
-    id: 3,
-    tanggal: "9 Mar 2026",
-    severity: "critical",
-    judul: "Papua: 3 komoditas naik >5% bersamaan",
-    deskripsi:
-      "Di Papua, 3 komoditas mengalami kenaikan >5% dalam 7 hari: beras (+5%), telur ayam (+7%), gula pasir (+4%).",
-    komoditas: "Multi-komoditas",
-    wilayah: "Papua",
-    nilaiAktual: 3,
-  },
-  {
-    id: 4,
-    tanggal: "8 Mar 2026",
-    severity: "warning",
-    judul: "Maluku: Beras dan minyak goreng volatilitas tinggi",
-    deskripsi:
-      "Di Maluku, beras dan minyak goreng menunjukkan volatilitas tinggi selama 2 minggu terakhir.",
-    komoditas: "Beras, Minyak Goreng",
-    wilayah: "Maluku",
-    nilaiAktual: 16.5,
-  },
-];
+import { useAlerts } from "@/hooks/use-alerts";
 
 const severityConfig = {
   critical: {
@@ -66,8 +21,11 @@ const severityConfig = {
 };
 
 export default function AlertsPage() {
-  const criticalCount = mockAlerts.filter((a) => a.severity === "critical").length;
-  const warningCount = mockAlerts.filter((a) => a.severity === "warning").length;
+  const { data: alertResponse, isLoading } = useAlerts(true, undefined, 20);
+  const alerts = alertResponse?.data ?? [];
+
+  const criticalCount = alerts.filter((a) => a.severity === "critical").length;
+  const warningCount = alerts.filter((a) => a.severity === "warning").length;
 
   return (
     <div className="space-y-6">
@@ -96,8 +54,16 @@ export default function AlertsPage() {
 
       {/* Alert List */}
       <div className="space-y-4">
-        {mockAlerts.map((alert) => {
-          const config = severityConfig[alert.severity as keyof typeof severityConfig];
+        {isLoading && (
+          <p className="text-sm text-gray-500">Memuat alert...</p>
+        )}
+        {!isLoading && alerts.length === 0 && (
+          <div className="bg-white rounded-xl border p-8 text-center">
+            <p className="text-sm text-gray-500">Tidak ada alert aktif saat ini.</p>
+          </div>
+        )}
+        {alerts.map((alert) => {
+          const config = severityConfig[alert.severity as keyof typeof severityConfig] ?? severityConfig.info;
           return (
             <div
               key={alert.id}
@@ -119,10 +85,10 @@ export default function AlertsPage() {
                   <p className="text-sm text-gray-600">{alert.deskripsi}</p>
                   <div className="flex gap-4 mt-3">
                     <span className="text-xs text-gray-500">
-                      Komoditas: <strong>{alert.komoditas}</strong>
+                      Komoditas: <strong>{alert.commodity.nama}</strong>
                     </span>
                     <span className="text-xs text-gray-500">
-                      Wilayah: <strong>{alert.wilayah}</strong>
+                      Wilayah: <strong>{alert.region.nama}</strong>
                     </span>
                   </div>
                 </div>

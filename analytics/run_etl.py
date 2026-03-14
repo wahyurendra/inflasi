@@ -26,18 +26,56 @@ import argparse
 import logging
 import sys
 import os
+import ssl
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from dotenv import load_dotenv
+
+# Load .env from project root (parent of analytics/)
+_project_root = os.path.dirname(os.path.dirname(__file__))
+load_dotenv(os.path.join(_project_root, ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres"
-)
+# Resolve database URL: prefer ANALYTICS_DATABASE_URL, fallback to DATABASE_URL
+# Ensure the URL uses asyncpg driver
+_raw_url = os.getenv("ANALYTICS_DATABASE_URL") or os.getenv("DATABASE_URL", "")
+if _raw_url.startswith("postgresql://"):
+    DATABASE_URL = _raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif _raw_url.startswith("postgresql+asyncpg://"):
+    DATABASE_URL = _raw_url
+else:
+    DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+    print(f"  [WARN] No DATABASE_URL found, using default: {DATABASE_URL}")
 
 PIPELINES = ["pihps", "kurs", "energy", "fao", "commodity", "news", "bmkg"]
+
+
+def _is_supabase(url: str) -> bool:
+    return "supabase" in url or "pooler.supabase" in url
+
+
+def _create_engine(url: str, verbose: bool = False):
+    """Create async engine with Supabase-compatible settings."""
+    kwargs = {
+        "echo": verbose,
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 300,
+    }
+
+    if _is_supabase(url):
+        # Supabase requires SSL
+        ssl_ctx = ssl.create_default_context()
+        kwargs["connect_args"] = {"ssl": ssl_ctx}
+        # Remove pgbouncer param from URL (handled by Supavisor, not asyncpg)
+        url = url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+
+    return create_async_engine(url, **kwargs)
 
 
 async def run_pihps(db: AsyncSession, dates: list[date], verbose: bool) -> int:
@@ -51,6 +89,7 @@ async def run_pihps(db: AsyncSession, dates: list[date], verbose: bool) -> int:
             raw = await pipeline.extract()
             print(f"    Extract: {len(raw)} baris")
             if not raw:
+                print("    - Tidak ada data (mungkin hari libur/weekend)")
                 continue
             valid = await pipeline.validate(raw)
             if not valid:
@@ -125,20 +164,21 @@ async def run_news(db: AsyncSession, days: int, verbose: bool) -> int:
 async def run_bmkg(db: AsyncSession, dates: list[date], verbose: bool) -> int:
     from app.etl.pipelines.bmkg_weather import BMKGWeatherPipeline
 
-    success = 0
+    total_records = 0
     for target_date in dates:
         pipeline = BMKGWeatherPipeline(db=db, target_date=target_date)
         try:
             print(f"\n  BMKG Weather — {target_date}")
             result = await pipeline.run()
-            print(f"    ✓ {result.get('records', 0)} records dimuat")
-            success += 1
+            records = result.get("records", 0) if isinstance(result, dict) else 0
+            print(f"    ✓ {records} records dimuat")
+            total_records += records
         except Exception as e:
             print(f"    ✗ Error: {e}")
             if verbose:
                 import traceback
                 traceback.print_exc()
-    return success
+    return total_records
 
 
 async def main():
@@ -170,14 +210,20 @@ async def main():
     else:
         run_list = [p]
 
+    # Check required env vars for specific pipelines
+    if "energy" in run_list and not os.getenv("EIA_API_KEY"):
+        print("  [WARN] EIA_API_KEY tidak di-set. Energy pipeline akan coba fallback ke World Bank.")
+
+    db_display = DATABASE_URL.split("@")[-1].split("?")[0] if "@" in DATABASE_URL else "local"
     print(f"\n{'='*60}")
     print(f"  INFLASI ETL RUNNER")
-    print(f"  Database : {DATABASE_URL.split('@')[-1]}")
+    print(f"  Database : {db_display}")
+    print(f"  Supabase : {'Ya' if _is_supabase(DATABASE_URL) else 'Tidak'}")
     print(f"  Pipelines: {', '.join(run_list)}")
     print(f"  Periode  : {dates[0]} — {dates[-1]} ({len(dates)} hari)")
     print(f"{'='*60}")
 
-    engine = create_async_engine(DATABASE_URL, echo=args.verbose)
+    engine = _create_engine(DATABASE_URL, verbose=args.verbose)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     results: dict[str, int] = {}
@@ -212,6 +258,9 @@ async def main():
     for name, count in results.items():
         status = "✓" if count > 0 else "✗"
         print(f"    {status} {name}: {count} records")
+    total = sum(results.values())
+    print(f"  ────────────────────────────")
+    print(f"    Total: {total} records")
     print(f"{'='*60}\n")
 
 

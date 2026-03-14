@@ -4,40 +4,12 @@ import { useState } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { PriceLineChart } from "@/components/charts/price-line-chart";
 import { DriverPanel } from "@/components/dashboard/driver-panel";
-import { usePrices } from "@/hooks/use-prices";
+import { usePrices, useCommodityRanking } from "@/hooks/use-prices";
 import { useForecast } from "@/hooks/use-forecast";
 import { useDrivers } from "@/hooks/use-drivers";
 
-const commodities = [
-  { kode: "CABAI_RAWIT", nama: "Cabai Rawit", harga: 85000, harian: 2.1, mingguan: 12.0, bulanan: 18.5 },
-  { kode: "BAWANG_MERAH", nama: "Bawang Merah", harga: 42000, harian: 0.5, mingguan: 7.0, bulanan: 11.2 },
-  { kode: "TELUR_AYAM", nama: "Telur Ayam", harga: 28500, harian: 0.8, mingguan: 4.0, bulanan: 6.1 },
-  { kode: "GULA_PASIR", nama: "Gula Pasir", harga: 17200, harian: 0.2, mingguan: 2.0, bulanan: 3.5 },
-  { kode: "BERAS", nama: "Beras", harga: 14850, harian: 0.3, mingguan: 1.2, bulanan: 3.8 },
-  { kode: "MINYAK_GORENG", nama: "Minyak Goreng", harga: 18100, harian: -0.1, mingguan: 0.5, bulanan: 1.2 },
-  { kode: "BAWANG_PUTIH", nama: "Bawang Putih", harga: 38000, harian: 0.0, mingguan: -0.3, bulanan: 2.1 },
-  { kode: "CABAI_MERAH", nama: "Cabai Merah", harga: 55000, harian: -0.5, mingguan: -1.2, bulanan: 5.3 },
-];
-
-// Mock chart data — akan diganti saat DB terisi
-function generateMockChartData(kode: string, days: number = 30) {
-  const basePrice = commodities.find((c) => c.kode === kode)?.harga ?? 15000;
-  const data = [];
-  const today = new Date();
-  for (let i = days; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const noise = (Math.random() - 0.4) * basePrice * 0.03;
-    const trend = ((days - i) / days) * basePrice * 0.05;
-    data.push({
-      tanggal: date.toISOString().slice(0, 10),
-      harga: Math.round(basePrice + trend + noise),
-    });
-  }
-  return data;
-}
-
-function ChangeCell({ value }: { value: number }) {
+function ChangeCell({ value }: { value: number | null }) {
+  if (value === null) return <td className="px-4 py-3 text-sm text-gray-400">-</td>;
   const color = value > 0 ? "text-red-600" : value < 0 ? "text-green-600" : "text-gray-500";
   const Icon = value > 0 ? TrendingUp : value < 0 ? TrendingDown : Minus;
 
@@ -59,18 +31,26 @@ export default function KomoditasPage() {
   const [days, setDays] = useState(30);
   const [showForecast, setShowForecast] = useState(true);
 
-  // Try fetching from API
+  const { data: rankingData, isLoading: rankingLoading } = useCommodityRanking("weekly_change", 10);
+  const commodities = (rankingData?.data ?? []).map((c) => ({
+    kode: c.kodeKomoditas,
+    nama: c.namaDisplay,
+    harga: c.hargaTerakhir ?? 0,
+    harian: c.perubahanHarian ?? 0,
+    mingguan: c.perubahanMingguan ?? 0,
+    bulanan: c.perubahanBulanan ?? 0,
+  }));
+
   const { data: apiData } = usePrices(selected, "00", days);
   const { data: forecastData } = useForecast(selected, "00", 14);
   const { data: driverData } = useDrivers(selected, "00");
 
-  // Use API data if available, otherwise mock
   const chartData =
     apiData?.data?.length
       ? apiData.data
           .map((d) => ({ tanggal: d.tanggal, harga: d.harga }))
           .reverse()
-      : generateMockChartData(selected, days);
+      : [];
 
   const selectedCommodity = commodities.find((c) => c.kode === selected);
 
@@ -79,7 +59,7 @@ export default function KomoditasPage() {
       <div>
         <h2 className="text-lg font-bold text-gray-900">Harga Komoditas</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Tren harga harian 8 komoditas pangan strategis
+          Tren harga harian komoditas pangan strategis
         </p>
       </div>
 
@@ -90,7 +70,7 @@ export default function KomoditasPage() {
             <h3 className="text-sm font-semibold text-gray-900">
               Tren Harga {selectedCommodity?.nama ?? "—"}
             </h3>
-            {selectedCommodity && (
+            {selectedCommodity && selectedCommodity.harga > 0 && (
               <p className="text-xs text-gray-500 mt-0.5">
                 Harga terakhir: Rp{" "}
                 {selectedCommodity.harga.toLocaleString("id-ID")} | Mingguan:{" "}
@@ -117,17 +97,21 @@ export default function KomoditasPage() {
               />
               Forecast
             </label>
-            <select
-              className="text-sm border rounded-lg px-3 py-1.5 bg-white"
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              {commodities.map((c) => (
-                <option key={c.kode} value={c.kode}>
-                  {c.nama}
-                </option>
-              ))}
-            </select>
+            {commodities.length > 0 ? (
+              <select
+                className="text-sm border rounded-lg px-3 py-1.5 bg-white"
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {commodities.map((c) => (
+                  <option key={c.kode} value={c.kode}>
+                    {c.nama}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-sm text-gray-400">Memuat komoditas...</span>
+            )}
             <select
               className="text-sm border rounded-lg px-3 py-1.5 bg-white"
               value={days}
@@ -140,11 +124,17 @@ export default function KomoditasPage() {
             </select>
           </div>
         </div>
-        <PriceLineChart
-          data={chartData}
-          forecastData={forecastData?.data}
-          showForecast={showForecast}
-        />
+        {chartData.length > 0 ? (
+          <PriceLineChart
+            data={chartData}
+            forecastData={forecastData?.data}
+            showForecast={showForecast}
+          />
+        ) : (
+          <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">
+            {rankingLoading ? "Memuat data..." : "Belum ada data harga tersedia."}
+          </div>
+        )}
       </div>
 
       {/* Driver Panel */}
@@ -154,7 +144,7 @@ export default function KomoditasPage() {
       />
 
       {/* Summary Cards */}
-      {selectedCommodity && (
+      {selectedCommodity && selectedCommodity.harga > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border px-4 py-3">
             <p className="text-xs text-gray-500">Harga Terakhir</p>
@@ -227,6 +217,13 @@ export default function KomoditasPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              {commodities.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                    {rankingLoading ? "Memuat data..." : "Belum ada data komoditas tersedia."}
+                  </td>
+                </tr>
+              )}
               {commodities.map((c) => (
                 <tr
                   key={c.kode}
@@ -241,7 +238,7 @@ export default function KomoditasPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
-                    Rp {c.harga.toLocaleString("id-ID")}
+                    {c.harga > 0 ? `Rp ${c.harga.toLocaleString("id-ID")}` : "-"}
                   </td>
                   <ChangeCell value={c.harian} />
                   <ChangeCell value={c.mingguan} />

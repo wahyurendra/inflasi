@@ -9,11 +9,13 @@ Data:
   - Crude oil (Brent)
 
 Sumber:
-  - World Bank Commodity API
-  - Alternative: commodities-api.com, marketstack
+  - World Bank GEM Commodities API (source=6)
+    https://api.worldbank.org/v2/sources/6/indicators
+  - Fallback: World Bank bulk CSV (Pink Sheet)
 """
 
 import logging
+import asyncio
 from datetime import date, timedelta
 
 import httpx
@@ -22,8 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-# World Bank commodity price indicators
-# https://api.worldbank.org/v2/sources/6/indicators
+# World Bank GEM Commodity indicators (source 6)
+# Reference: https://api.worldbank.org/v2/sources/6/indicators?format=json
 WB_INDICATORS = {
     "RICE_05": ("rice", "USD/mt"),
     "WHEAT_US_HRW": ("wheat", "USD/mt"),
@@ -59,8 +61,12 @@ class CommodityGlobalPipeline:
                         count = await self._load(data)
                         total += count
                         logger.debug(f"[{self.name}] {commodity}: {count} records")
+                    else:
+                        logger.warning(f"[{self.name}] No data for {commodity} ({wb_code})")
                 except Exception as e:
                     logger.warning(f"[{self.name}] Failed {commodity}: {e}")
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(0.5)
 
             logger.info(f"[{self.name}] Total loaded: {total} records")
             return total
@@ -68,17 +74,29 @@ class CommodityGlobalPipeline:
             await self.client.aclose()
 
     async def _fetch_indicator(self, wb_code: str, commodity: str, unit: str) -> list[dict]:
-        """Fetch satu indikator dari World Bank API."""
+        """
+        Fetch satu indikator dari World Bank GEM Commodities API.
+        Uses source=6 (Global Economic Monitor Commodities) for commodity price data.
+        """
+        # Primary: GEM Commodities source
         url = f"https://api.worldbank.org/v2/country/WLD/indicator/{wb_code}"
         params = {
             "format": "json",
             "per_page": "500",
             "date": f"{self.year_start}:{self.year_end}",
-            # No source filter — WB auto-selects best source per indicator
+            "source": "6",  # GEM Commodities database
         }
 
         resp = await self.client.get(url, params=params)
+
+        # Fallback: try without source filter if source=6 fails
         if resp.status_code != 200:
+            logger.debug(f"[{self.name}] Source 6 failed for {wb_code}, trying without source filter")
+            params.pop("source")
+            resp = await self.client.get(url, params=params)
+
+        if resp.status_code != 200:
+            logger.warning(f"[{self.name}] WB API HTTP {resp.status_code} for {wb_code}")
             return []
 
         try:
@@ -95,15 +113,15 @@ class CommodityGlobalPipeline:
             val = rec.get("value")
             if val is None:
                 continue
-            date_str = rec.get("date", "")
+            date_str = str(rec.get("date", ""))
             # World Bank monthly format: "2024M01" or annual "2024"
-            if "M" in str(date_str):
-                parts = str(date_str).split("M")
+            if "M" in date_str:
+                parts = date_str.split("M")
                 if len(parts) == 2:
                     periode = f"{parts[0]}-{parts[1].zfill(2)}-01"
                 else:
                     continue
-            elif len(str(date_str)) == 4:
+            elif len(date_str) == 4:
                 periode = f"{date_str}-01-01"
             else:
                 continue

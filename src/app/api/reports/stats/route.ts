@@ -18,15 +18,11 @@ export async function GET() {
       rejected: total - approved - pending - flagged,
       approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,
     });
-  } catch {
+  } catch (error) {
+    console.error("Report stats error:", error);
     return NextResponse.json({
-      total: 127,
-      approved: 98,
-      pending: 15,
-      flagged: 5,
-      rejected: 9,
-      approvalRate: 77,
-      source: "mock",
-    });
+      total: 0, approved: 0, pending: 0, flagged: 0, rejected: 0, approvalRate: 0,
+      error: "Database error",
+    }, { status: 500 });
   }
 }

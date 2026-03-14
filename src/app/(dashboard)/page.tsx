@@ -7,72 +7,64 @@ import { InsightCard } from "@/components/dashboard/insight-card";
 import { AlertBanner } from "@/components/dashboard/alert-banner";
 import { InflationTrendChart } from "@/components/charts/inflation-trend-chart";
 import { useHeadlineInflation } from "@/hooks/use-inflation";
+import { useCommodityRanking } from "@/hooks/use-prices";
+import { useAlerts } from "@/hooks/use-alerts";
 import { useForecast } from "@/hooks/use-forecast";
+import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { MVP_COMMODITIES } from "@/lib/constants";
 
-// Mock data — digunakan saat DB belum terisi
-const mockHeadline = {
-  mtm: 0.42,
-  ytd: 1.23,
-  yoy: 5.21,
-  ihk: 118.35,
-  periode: "Februari 2026",
-};
+function useRegionHeatmap() {
+  return useQuery<{
+    data: Array<{
+      kodeWilayah: string;
+      namaProvinsi: string;
+      avgPriceChange: number;
+      alertCount: number;
+      riskCategory: string;
+    }>;
+  }>({
+    queryKey: ["regions", "heatmap"],
+    queryFn: async () => {
+      const res = await fetch("/api/regions/heatmap");
+      if (!res.ok) throw new Error("Failed to fetch regions");
+      return res.json();
+    },
+  });
+}
 
-const mockInflationTrend = [
-  { periode: "Sep", mtm: 0.18 },
-  { periode: "Okt", mtm: 0.12 },
-  { periode: "Nov", mtm: -0.05 },
-  { periode: "Des", mtm: 0.55 },
-  { periode: "Jan", mtm: 0.65 },
-  { periode: "Feb", mtm: 0.42 },
-];
+function useLatestInsight() {
+  return useQuery<{
+    data: {
+      tanggal: string;
+      judul: string;
+      konten: string;
+    } | null;
+  }>({
+    queryKey: ["insights", "latest"],
+    queryFn: async () => {
+      const res = await fetch("/api/insights/latest");
+      if (!res.ok) throw new Error("Failed to fetch insight");
+      return res.json();
+    },
+  });
+}
 
-const mockCommodities = [
-  { namaDisplay: "Cabai Rawit", hargaTerakhir: 85000, perubahanMingguan: 12.0, kategori: "bumbu" },
-  { namaDisplay: "Bawang Merah", hargaTerakhir: 42000, perubahanMingguan: 7.0, kategori: "bumbu" },
-  { namaDisplay: "Telur Ayam", hargaTerakhir: 28500, perubahanMingguan: 4.0, kategori: "protein" },
-  { namaDisplay: "Gula Pasir", hargaTerakhir: 17200, perubahanMingguan: 2.0, kategori: "minyak_gula" },
-  { namaDisplay: "Beras", hargaTerakhir: 14850, perubahanMingguan: 1.2, kategori: "bahan_pokok" },
-];
+function ForecastTrafficLight({ kode, nama }: { kode: string; nama: string }) {
+  const { data: rankingData } = useCommodityRanking("weekly_change", 10);
+  const commodity = rankingData?.data?.find((c) => c.kodeKomoditas === kode);
+  const hargaSekarang = commodity?.hargaTerakhir ?? 0;
 
-const mockRegions = [
-  { namaProvinsi: "Papua", avgPriceChange: 8.2, alertCount: 2 },
-  { namaProvinsi: "Maluku", avgPriceChange: 6.1, alertCount: 1 },
-  { namaProvinsi: "Nusa Tenggara Timur", avgPriceChange: 5.3, alertCount: 1 },
-  { namaProvinsi: "Sulawesi Utara", avgPriceChange: 4.8, alertCount: 0 },
-  { namaProvinsi: "Kalimantan Timur", avgPriceChange: 4.0, alertCount: 0 },
-];
-
-const mockAlerts = [
-  { id: 1, severity: "critical" as const, judul: "Cabai rawit: spike +12% / 7 hari (5 provinsi)" },
-  { id: 2, severity: "warning" as const, judul: "Bawang merah: volatilitas tinggi 2 minggu" },
-  { id: 3, severity: "warning" as const, judul: "Papua: 3 komoditas naik bersamaan" },
-];
-
-const mockInsight = {
-  judul: "Insight Harian 10 Maret 2026",
-  tanggal: "10 Mar 2026",
-  konten:
-    "Cabai rawit mengalami kenaikan 12% dalam 7 hari terakhir, terutama di wilayah Jawa Barat dan Jawa Timur. Kenaikan ini bertepatan dengan curah hujan tinggi dan mendekati periode Ramadan.\n\nBawang merah menunjukkan volatilitas tinggi selama 2 minggu berturut-turut dengan CV 18.3%.\n\nWilayah Papua mencatat 3 komoditas naik bersamaan — perlu perhatian khusus.",
-};
-
-const forecastCommodities = [
-  { kode: "CABAI_RAWIT", nama: "Cabai Rawit", hargaSekarang: 85000 },
-  { kode: "BAWANG_MERAH", nama: "Bawang Merah", hargaSekarang: 42000 },
-  { kode: "BERAS", nama: "Beras", hargaSekarang: 14850 },
-  { kode: "TELUR_AYAM", nama: "Telur Ayam", hargaSekarang: 28500 },
-];
-
-function ForecastTrafficLight({ kode, nama, hargaSekarang }: { kode: string; nama: string; hargaSekarang: number }) {
   const { data } = useForecast(kode, "00", 7);
   const lastForecast = data?.data?.[data.data.length - 1];
   const prediksi = lastForecast?.yhat ?? hargaSekarang;
-  const changePct = ((prediksi - hargaSekarang) / hargaSekarang) * 100;
+  const changePct = hargaSekarang > 0 ? ((prediksi - hargaSekarang) / hargaSekarang) * 100 : 0;
 
   const color = changePct > 3 ? "text-red-600" : changePct > 1 ? "text-orange-500" : changePct < -1 ? "text-green-600" : "text-muted-foreground";
   const bg = changePct > 3 ? "bg-red-50" : changePct > 1 ? "bg-orange-50" : changePct < -1 ? "bg-green-50" : "bg-muted";
   const Icon = changePct > 0.5 ? TrendingUp : changePct < -0.5 ? TrendingDown : Minus;
+
+  if (!hargaSekarang) return null;
 
   return (
     <div className={`${bg} rounded-lg px-4 py-3 border`}>
@@ -96,15 +88,42 @@ function ForecastTrafficLight({ kode, nama, hargaSekarang }: { kode: string; nam
 
 export default function OverviewPage() {
   const { data: headlineData } = useHeadlineInflation();
+  const { data: rankingData } = useCommodityRanking("weekly_change", 5);
+  const { data: regionData } = useRegionHeatmap();
+  const { data: alertData } = useAlerts(true, undefined, 5);
+  const { data: insightData } = useLatestInsight();
 
-  const headline = headlineData?.inflasi ?? mockHeadline;
-  const periode =
-    headlineData?.inflasi?.periode
-      ? new Date(headlineData.inflasi.periode).toLocaleDateString("id-ID", {
-          month: "long",
-          year: "numeric",
-        })
-      : mockHeadline.periode;
+  const headline = headlineData?.inflasi ?? null;
+  const periode = headline?.periode
+    ? new Date(headline.periode).toLocaleDateString("id-ID", {
+        month: "long",
+        year: "numeric",
+      })
+    : "-";
+
+  const commodities = (rankingData?.data ?? []).map((c) => ({
+    namaDisplay: c.namaDisplay,
+    hargaTerakhir: c.hargaTerakhir ?? 0,
+    perubahanMingguan: c.perubahanMingguan ?? 0,
+    kategori: c.kategori,
+  }));
+
+  const regions = (regionData?.data ?? [])
+    .sort((a, b) => b.avgPriceChange - a.avgPriceChange)
+    .slice(0, 5);
+
+  const alerts = (alertData?.data ?? []).map((a) => ({
+    id: a.id,
+    severity: a.severity,
+    judul: a.judul,
+  }));
+
+  const insight = insightData?.data ?? null;
+
+  const forecastCommodities = MVP_COMMODITIES.slice(0, 4).map((c) => ({
+    kode: c.kode,
+    nama: c.display,
+  }));
 
   return (
     <div className="space-y-6">
@@ -113,16 +132,16 @@ export default function OverviewPage() {
           Pemantauan Inflasi Pangan Indonesia
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Data terakhir diperbarui: 10 Maret 2026 11:30 WIB
+          Data terakhir diperbarui: {headline?.periode ? new Date(headline.periode).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
         </p>
       </div>
 
       {/* Headline Cards */}
       <HeadlineCards
-        mtm={headline.mtm}
-        ytd={headline.ytd}
-        yoy={headline.yoy}
-        ihk={headline.ihk}
+        mtm={headline?.mtm ?? null}
+        ytd={headline?.ytd ?? null}
+        yoy={headline?.yoy ?? null}
+        ihk={headline?.ihk ?? null}
         periode={periode}
       />
 
@@ -131,34 +150,47 @@ export default function OverviewPage() {
         <h3 className="text-sm font-semibold text-foreground mb-3">
           Tren Inflasi Bulanan (MtM)
         </h3>
-        <InflationTrendChart data={mockInflationTrend} height={180} />
+        <InflationTrendChart data={[]} height={180} />
       </div>
 
       {/* Forecast 7 Hari */}
-      <div className="bg-card rounded-xl border p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">
-          Forecast Harga 7 Hari
-        </h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          Prediksi perubahan harga H+7 dibanding hari ini
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {forecastCommodities.map((c) => (
-            <ForecastTrafficLight key={c.kode} {...c} />
-          ))}
+      {forecastCommodities.length > 0 && (
+        <div className="bg-card rounded-xl border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-3">
+            Forecast Harga 7 Hari
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Prediksi perubahan harga H+7 dibanding hari ini
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {forecastCommodities.map((c) => (
+              <ForecastTrafficLight key={c.kode} {...c} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Two Column: Commodities + Regions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <CommodityRanking data={mockCommodities} title="Komoditas Paling Naik Minggu Ini" />
-        <RegionRanking data={mockRegions} title="Wilayah Paling Tertekan Minggu Ini" />
+        <CommodityRanking data={commodities} title="Komoditas Paling Naik Minggu Ini" />
+        <RegionRanking data={regions} title="Wilayah Paling Tertekan Minggu Ini" />
       </div>
 
       {/* Insight + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <InsightCard {...mockInsight} />
-        <AlertBanner alerts={mockAlerts} />
+        {insight ? (
+          <InsightCard
+            judul={insight.judul}
+            konten={insight.konten}
+            tanggal={insight.tanggal}
+          />
+        ) : (
+          <div className="bg-card rounded-xl border p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Insight Hari Ini</h3>
+            <p className="text-sm text-muted-foreground">Belum ada insight tersedia.</p>
+          </div>
+        )}
+        <AlertBanner alerts={alerts} />
       </div>
     </div>
   );

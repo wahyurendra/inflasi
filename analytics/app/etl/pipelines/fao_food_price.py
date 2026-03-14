@@ -1,16 +1,17 @@
 """
 Pipeline: FAO Food Price Index
 
-Sumber: https://www.fao.org/worldfoodsituation/foodpricesindex
+Sumber:
+  1. FAO official data portal (CSV bulk download)
+     https://www.fao.org/worldfoodsituation/foodpricesindex/en/
+  2. Fallback: World Bank (FOOD_G_T indicator)
 Frekuensi: Bulanan
 Data: Indeks harga pangan global (overall, cereals, vegetable oil, dairy, meat, sugar)
-
-API: FAO FPMA API (Food Price Monitoring and Analysis)
-  GET https://fpma.fao.org/giews/fpmat4/#/dashboard/tool/international
-  Bulk CSV: https://www.fao.org/faostat/en/#data/CP (FAOSTAT Commodity Prices)
 """
 
 import logging
+import csv
+import io
 from datetime import date
 from typing import Any
 
@@ -20,9 +21,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-# FAO FAOSTAT bulk CSV URL for food price index
-# Alternative: scrape from FAO data portal
-FAO_DATA_URL = "https://www.fao.org/fileadmin/templates/worldfood/Reports_and_docs/Food_price_indices_data_jul14.csv"
+# FAO official CSV for food price index data
+# This is the actual downloadable CSV from FAO's website
+FAO_CSV_URL = "https://www.fao.org/fileadmin/templates/worldfood/Reports_and_docs/Food_price_indices_data_jul14.csv"
+
+# Alternative: FAO FPMA Tool API
+FPMA_API_URL = "https://fpma.fao.org/giews/fpmat4/api"
 
 
 class FAOFoodPricePipeline:
@@ -33,7 +37,7 @@ class FAOFoodPricePipeline:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.client = httpx.AsyncClient(
-            timeout=30.0,
+            timeout=60.0,
             follow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 (compatible; InflasiBot/1.0)"},
         )
@@ -60,100 +64,191 @@ class FAOFoodPricePipeline:
     async def _fetch_data(self) -> list[dict]:
         """
         Fetch FAO food price index data.
-        Uses World Bank API as primary source (more reliable for programmatic access).
+        Tries FAO CSV first, then World Bank as fallback.
         """
-        results = []
-
-        # Use World Bank API for FAO-related food price data
-        # AG.PRD.FOOD.XD = Food price index
-        try:
-            wb_data = await self._fetch_from_worldbank()
-            if wb_data:
-                return wb_data
-        except Exception as e:
-            logger.warning(f"[{self.name}] World Bank API failed: {e}")
-
-        # Fallback: try FAO CSV
+        # Primary: FAO official CSV
         try:
             csv_data = await self._fetch_from_fao_csv()
             if csv_data:
+                logger.info(f"[{self.name}] Got {len(csv_data)} records from FAO CSV")
                 return csv_data
         except Exception as e:
             logger.warning(f"[{self.name}] FAO CSV failed: {e}")
 
-        return results
+        # Fallback: World Bank API
+        try:
+            wb_data = await self._fetch_from_worldbank()
+            if wb_data:
+                logger.info(f"[{self.name}] Got {len(wb_data)} records from World Bank")
+                return wb_data
+        except Exception as e:
+            logger.warning(f"[{self.name}] World Bank API failed: {e}")
 
-    async def _fetch_from_worldbank(self) -> list[dict]:
-        """Fetch food price index from World Bank API."""
-        # World Bank commodity price data (Pink Sheet)
-        url = "https://api.worldbank.org/v2/country/WLD/indicator/FOOD_G_T"
-        params = {
-            "format": "json",
-            "per_page": "120",  # 10 years monthly
-            "date": "2020:2026",
-        }
-
-        resp = await self.client.get(url, params=params)
-        if resp.status_code != 200:
-            return []
-
-        payload = resp.json()
-        if not payload or len(payload) < 2:
-            return []
-
-        records = payload[1] or []
-        results = []
-        for rec in records:
-            val = rec.get("value")
-            if val is None:
-                continue
-            year = rec.get("date", "")
-            # World Bank returns annual data for this indicator
-            results.append({
-                "periode": f"{year}-01-01",
-                "index_overall": float(val),
-            })
-
-        return results
+        return []
 
     async def _fetch_from_fao_csv(self) -> list[dict]:
-        """Fetch from FAO CSV data."""
-        resp = await self.client.get(FAO_DATA_URL)
+        """
+        Fetch from FAO official CSV data.
+        The CSV contains monthly indices with columns for each food group.
+        """
+        resp = await self.client.get(FAO_CSV_URL)
         if resp.status_code != 200:
+            logger.warning(f"[{self.name}] FAO CSV HTTP {resp.status_code}")
             return []
 
-        import csv
-        import io
+        content = resp.text
+        if not content or len(content) < 100:
+            return []
 
-        reader = csv.DictReader(io.StringIO(resp.text))
+        # Try different CSV dialects (FAO uses various formats)
         results = []
-        for row in reader:
-            try:
-                # FAO CSV format varies, try common column names
-                periode = row.get("Date") or row.get("date") or row.get("Month")
-                overall = row.get("Food Price Index") or row.get("FPI") or row.get("Food")
-                cereals = row.get("Cereals") or row.get("Cereal Price Index")
-                veg_oil = row.get("Vegetable Oils") or row.get("Oils")
-                dairy = row.get("Dairy") or row.get("Dairy Price Index")
-                meat = row.get("Meat") or row.get("Meat Price Index")
-                sugar = row.get("Sugar") or row.get("Sugar Price Index")
 
-                if not periode or not overall:
+        # Try standard CSV parsing
+        try:
+            reader = csv.DictReader(io.StringIO(content))
+            headers = reader.fieldnames or []
+            logger.debug(f"[{self.name}] FAO CSV headers: {headers}")
+
+            for row in reader:
+                try:
+                    record = self._parse_fao_row(row)
+                    if record:
+                        results.append(record)
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"[{self.name}] Skip row: {e}")
+                    continue
+        except csv.Error:
+            # Try tab-separated
+            reader = csv.DictReader(io.StringIO(content), delimiter="\t")
+            for row in reader:
+                try:
+                    record = self._parse_fao_row(row)
+                    if record:
+                        results.append(record)
+                except (ValueError, TypeError):
+                    continue
+
+        return results
+
+    def _parse_fao_row(self, row: dict) -> dict | None:
+        """Parse a single FAO CSV row into our format."""
+        # Try various column name patterns FAO uses
+        periode = (
+            row.get("Date") or row.get("date") or row.get("Month")
+            or row.get("Tanggal") or row.get("Period") or row.get("period")
+        )
+        if not periode:
+            return None
+
+        overall = self._safe_float(
+            row.get("Food Price Index") or row.get("FPI")
+            or row.get("Food") or row.get("food_price_index")
+            or row.get("Food price index")
+        )
+        if overall is None:
+            return None
+
+        return {
+            "periode": periode,
+            "index_overall": overall,
+            "index_cereals": self._safe_float(
+                row.get("Cereals") or row.get("Cereal Price Index")
+                or row.get("cereals") or row.get("Cereal price index")
+            ),
+            "index_veg_oil": self._safe_float(
+                row.get("Vegetable Oils") or row.get("Oils")
+                or row.get("vegetable_oils") or row.get("Vegetable oils")
+            ),
+            "index_dairy": self._safe_float(
+                row.get("Dairy") or row.get("Dairy Price Index")
+                or row.get("dairy") or row.get("Dairy price index")
+            ),
+            "index_meat": self._safe_float(
+                row.get("Meat") or row.get("Meat Price Index")
+                or row.get("meat") or row.get("Meat price index")
+            ),
+            "index_sugar": self._safe_float(
+                row.get("Sugar") or row.get("Sugar Price Index")
+                or row.get("sugar") or row.get("Sugar price index")
+            ),
+        }
+
+    def _safe_float(self, val) -> float | None:
+        if val is None or str(val).strip() in ("", "-", "n/a", "N/A"):
+            return None
+        try:
+            return float(str(val).replace(",", "").strip())
+        except (ValueError, TypeError):
+            return None
+
+    async def _fetch_from_worldbank(self) -> list[dict]:
+        """
+        Fetch food price index from World Bank API.
+        Uses GEM Commodities (source=6) FOOD indicator.
+        """
+        # Try multiple indicator codes
+        indicators = ["FOOD_G_T", "AG.PRD.FOOD.XD"]
+
+        for indicator in indicators:
+            url = f"https://api.worldbank.org/v2/country/WLD/indicator/{indicator}"
+            params = {
+                "format": "json",
+                "per_page": "120",
+                "date": "2020:2026",
+                "source": "6",
+            }
+
+            resp = await self.client.get(url, params=params)
+            if resp.status_code != 200:
+                # Try without source filter
+                params.pop("source")
+                resp = await self.client.get(url, params=params)
+
+            if resp.status_code != 200:
+                continue
+
+            try:
+                payload = resp.json()
+            except Exception:
+                continue
+
+            if not payload or len(payload) < 2 or not payload[1]:
+                continue
+
+            records = payload[1]
+            results = []
+            for rec in records:
+                val = rec.get("value")
+                if val is None:
+                    continue
+                date_str = str(rec.get("date", ""))
+
+                # Parse various WB date formats
+                if "M" in date_str:
+                    parts = date_str.split("M")
+                    if len(parts) == 2:
+                        periode_str = f"{parts[0]}-{parts[1].zfill(2)}-01"
+                    else:
+                        continue
+                elif len(date_str) == 4:
+                    periode_str = f"{date_str}-01-01"
+                else:
                     continue
 
                 results.append({
-                    "periode": periode,
-                    "index_overall": float(str(overall).replace(",", "")),
-                    "index_cereals": float(str(cereals).replace(",", "")) if cereals else None,
-                    "index_veg_oil": float(str(veg_oil).replace(",", "")) if veg_oil else None,
-                    "index_dairy": float(str(dairy).replace(",", "")) if dairy else None,
-                    "index_meat": float(str(meat).replace(",", "")) if meat else None,
-                    "index_sugar": float(str(sugar).replace(",", "")) if sugar else None,
+                    "periode": periode_str,
+                    "index_overall": float(val),
+                    "index_cereals": None,
+                    "index_veg_oil": None,
+                    "index_dairy": None,
+                    "index_meat": None,
+                    "index_sugar": None,
                 })
-            except (ValueError, TypeError):
-                continue
 
-        return results
+            if results:
+                return results
+
+        return []
 
     async def _load(self, data: list[dict]) -> int:
         """Upsert to ext_fao_food_price."""
@@ -162,21 +257,24 @@ class FAOFoodPricePipeline:
             try:
                 periode = row["periode"]
                 if isinstance(periode, str):
-                    if len(periode) == 4:
-                        periode = f"{periode}-01-01"
-                    periode = date.fromisoformat(periode)
+                    periode = self._parse_date(periode)
+                if periode is None:
+                    continue
 
                 await self.db.execute(
                     text("""
-                        INSERT INTO ext_fao_food_price (periode, index_overall, index_cereals, index_veg_oil, index_dairy, index_meat, index_sugar)
-                        VALUES (:periode, :index_overall, :index_cereals, :index_veg_oil, :index_dairy, :index_meat, :index_sugar)
+                        INSERT INTO ext_fao_food_price
+                            (periode, index_overall, index_cereals, index_veg_oil, index_dairy, index_meat, index_sugar)
+                        VALUES
+                            (:periode, :index_overall, :index_cereals, :index_veg_oil, :index_dairy, :index_meat, :index_sugar)
                         ON CONFLICT (periode)
-                        DO UPDATE SET index_overall = EXCLUDED.index_overall,
-                                      index_cereals = EXCLUDED.index_cereals,
-                                      index_veg_oil = EXCLUDED.index_veg_oil,
-                                      index_dairy = EXCLUDED.index_dairy,
-                                      index_meat = EXCLUDED.index_meat,
-                                      index_sugar = EXCLUDED.index_sugar
+                        DO UPDATE SET
+                            index_overall = EXCLUDED.index_overall,
+                            index_cereals = COALESCE(EXCLUDED.index_cereals, ext_fao_food_price.index_cereals),
+                            index_veg_oil = COALESCE(EXCLUDED.index_veg_oil, ext_fao_food_price.index_veg_oil),
+                            index_dairy   = COALESCE(EXCLUDED.index_dairy, ext_fao_food_price.index_dairy),
+                            index_meat    = COALESCE(EXCLUDED.index_meat, ext_fao_food_price.index_meat),
+                            index_sugar   = COALESCE(EXCLUDED.index_sugar, ext_fao_food_price.index_sugar)
                     """),
                     {
                         "periode": periode,
@@ -194,3 +292,34 @@ class FAOFoodPricePipeline:
 
         await self.db.commit()
         return count
+
+    def _parse_date(self, s: str) -> date | None:
+        """Parse various date string formats to date object."""
+        s = s.strip()
+        # Try ISO format: YYYY-MM-DD
+        try:
+            return date.fromisoformat(s)
+        except ValueError:
+            pass
+        # Try YYYY-MM
+        if len(s) == 7 and "-" in s:
+            try:
+                return date.fromisoformat(f"{s}-01")
+            except ValueError:
+                pass
+        # Try YYYY only
+        if len(s) == 4:
+            try:
+                return date(int(s), 1, 1)
+            except ValueError:
+                pass
+        # Try MM/YYYY or M/YYYY
+        if "/" in s:
+            parts = s.split("/")
+            if len(parts) == 2:
+                try:
+                    month, year = int(parts[0]), int(parts[1])
+                    return date(year, month, 1)
+                except (ValueError, IndexError):
+                    pass
+        return None

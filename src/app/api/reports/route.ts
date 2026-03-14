@@ -2,50 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-// Mock data for when DB is unavailable
-const mockReports = [
-  {
-    id: "mock-1",
-    userId: "demo",
-    commodityId: 1,
-    regionId: 1,
-    harga: 15000,
-    satuan: "kg",
-    namaPasar: "Pasar Senen",
-    kota: "Jakarta Pusat",
-    kecamatan: "Senen",
-    tanggal: new Date().toISOString().split("T")[0],
-    catatan: "Harga stabil",
-    status: "APPROVED",
-    confidenceScore: 85,
-    createdAt: new Date().toISOString(),
-    commodity: { namaDisplay: "Beras", kodeKomoditas: "BERAS" },
-    region: { namaProvinsi: "DKI Jakarta", kodeWilayah: "31" },
-    user: { name: "Reporter Demo" },
-    photos: [],
-  },
-  {
-    id: "mock-2",
-    userId: "demo",
-    commodityId: 2,
-    regionId: 1,
-    harga: 45000,
-    satuan: "kg",
-    namaPasar: "Pasar Kramat Jati",
-    kota: "Jakarta Timur",
-    kecamatan: "Kramat Jati",
-    tanggal: new Date().toISOString().split("T")[0],
-    catatan: null,
-    status: "PENDING",
-    confidenceScore: 60,
-    createdAt: new Date().toISOString(),
-    commodity: { namaDisplay: "Cabai Merah", kodeKomoditas: "CABAI_MERAH" },
-    region: { namaProvinsi: "DKI Jakarta", kodeWilayah: "31" },
-    user: { name: "Reporter Demo" },
-    photos: [],
-  },
-];
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
@@ -82,16 +38,15 @@ export async function GET(request: NextRequest) {
       page,
       totalPages: Math.ceil(total / limit),
     });
-  } catch {
-    let filtered = mockReports;
-    if (status) filtered = filtered.filter((r) => r.status === status);
+  } catch (error) {
+    console.error("Reports GET error:", error);
     return NextResponse.json({
-      data: filtered,
-      total: filtered.length,
+      data: [],
+      total: 0,
       page: 1,
-      totalPages: 1,
-      source: "mock",
-    });
+      totalPages: 0,
+      error: "Database error",
+    }, { status: 500 });
   }
 }
 

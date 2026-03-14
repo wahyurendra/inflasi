@@ -2,15 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-const mockUsers = [
-  { id: "1", name: "Admin Demo", email: "admin@inflasi.id", role: "ADMIN", isActive: true, createdAt: "2024-01-01", _count: { priceReports: 0 } },
-  { id: "2", name: "Budi Santoso", email: "budi@gov.id", role: "GOVERNMENT_ANALYST", isActive: true, createdAt: "2024-02-15", _count: { priceReports: 0 } },
-  { id: "3", name: "Siti Rahayu", email: "siti@regional.id", role: "REGIONAL_OFFICER", isActive: true, createdAt: "2024-03-10", _count: { priceReports: 5 } },
-  { id: "4", name: "Ahmad Rizki", email: "ahmad@email.com", role: "REPORTER", isActive: true, createdAt: "2024-04-20", _count: { priceReports: 42 } },
-  { id: "5", name: "Dewi Lestari", email: "dewi@email.com", role: "REPORTER", isActive: true, createdAt: "2024-05-05", _count: { priceReports: 28 } },
-  { id: "6", name: "Eko Prasetyo", email: "eko@email.com", role: "REPORTER", isActive: false, createdAt: "2024-06-12", _count: { priceReports: 3 } },
-];
-
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -45,8 +36,9 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({ data: users, total, page, limit });
-  } catch {
-    return NextResponse.json({ data: mockUsers, total: mockUsers.length, page: 1, limit: 20, source: "mock" });
+  } catch (error) {
+    console.error("Admin users error:", error);
+    return NextResponse.json({ data: [], total: 0, page: 1, limit: 20, error: "Database error" }, { status: 500 });
   }
 }
 

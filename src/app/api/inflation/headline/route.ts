@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 
 export async function GET() {
   try {
-    // Get latest inflation data (national level)
     const latest = await prisma.factInflationMonthly.findFirst({
       where: {
         region: { kodeWilayah: "00" },
@@ -13,16 +12,9 @@ export async function GET() {
     });
 
     if (!latest) {
-      // Return mock data if no data in DB yet
       return NextResponse.json({
-        inflasi: {
-          mtm: 0.42,
-          ytd: 1.23,
-          yoy: 5.21,
-          ihk: 118.35,
-          periode: "2026-02-01",
-        },
-        source: "mock",
+        inflasi: null,
+        message: "Belum ada data inflasi",
       });
     }
 
@@ -34,19 +26,9 @@ export async function GET() {
         ihk: latest.ihk ? Number(latest.ihk) : null,
         periode: latest.periode.toISOString().slice(0, 10),
       },
-      source: "database",
     });
-  } catch {
-    // DB not connected — return mock data
-    return NextResponse.json({
-      inflasi: {
-        mtm: 0.42,
-        ytd: 1.23,
-        yoy: 5.21,
-        ihk: 118.35,
-        periode: "2026-02-01",
-      },
-      source: "mock",
-    });
+  } catch (error) {
+    console.error("Inflation headline error:", error);
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 }

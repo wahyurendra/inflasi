@@ -3,11 +3,16 @@ BMKG Weather Data Pipeline.
 
 Mengambil data cuaca dari BMKG Open Data API (prakiraan cuaca per provinsi).
 Menyimpan ke tabel fact_climate.
+
+Sumber: https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast/
+Format: XML (DigitalForecast per provinsi)
 """
 
 import logging
+import asyncio
 from datetime import date, timedelta
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import httpx
 from sqlalchemy import text
@@ -85,7 +90,7 @@ class BMKGWeatherPipeline(DataPipeline):
         self.target_date = target_date or date.today()
 
     async def extract(self) -> Any:
-        """Fetch weather data from BMKG for all provinces."""
+        """Fetch weather XML data from BMKG for all provinces."""
         records = []
         async with httpx.AsyncClient(timeout=30) as client:
             for prov_name, (filename, kode_bps) in BMKG_PROVINCE_FILES.items():
@@ -102,30 +107,34 @@ class BMKGWeatherPipeline(DataPipeline):
                         logger.warning(f"BMKG {prov_name}: HTTP {resp.status_code}")
                 except Exception as e:
                     logger.warning(f"BMKG {prov_name}: {e}")
+                # Small delay to be polite to BMKG servers
+                await asyncio.sleep(0.2)
         return records
 
     async def validate(self, raw: Any) -> bool:
         if not raw:
             logger.warning("No BMKG data fetched")
             return False
-        return len(raw) >= 10  # at least 10 provinces
+        valid = sum(1 for r in raw if r.get("xml_content"))
+        logger.info(f"BMKG: Got XML data from {valid}/{len(BMKG_PROVINCE_FILES)} provinces")
+        return valid >= 10  # at least 10 provinces
 
     async def transform(self, raw: Any) -> Any:
         """Parse XML and extract temperature + rainfall averages per province."""
         clean = []
         for record in raw:
             try:
-                xml = record["xml_content"]
-                # Simple XML parsing — extract temperature and humidity values
-                # BMKG XML has <parameter id="t" ...> for temperature
-                # and <parameter id="hu" ...> for humidity
+                xml_text = record["xml_content"]
 
-                avg_temp = self._extract_avg_param(xml, "t")
-                avg_humidity = self._extract_avg_param(xml, "hu")
-                max_rainfall = self._extract_max_rainfall(xml)
+                # Parse using proper XML parser
+                avg_temp = self._extract_avg_param_xml(xml_text, "t")
+                avg_humidity = self._extract_avg_param_xml(xml_text, "hu")
+                max_rainfall = self._extract_max_rainfall_xml(xml_text)
 
                 warning = classify_warning(max_rainfall) if max_rainfall else "normal"
-                anomali = f"Curah hujan {max_rainfall:.0f}mm" if max_rainfall > RAINFALL_THRESHOLDS["waspada"] else None
+                anomali = None
+                if max_rainfall and max_rainfall > RAINFALL_THRESHOLDS["waspada"]:
+                    anomali = f"Curah hujan {max_rainfall:.0f}mm"
 
                 clean.append({
                     "tanggal": self.target_date,
@@ -139,41 +148,93 @@ class BMKGWeatherPipeline(DataPipeline):
                 logger.warning(f"BMKG transform {record['province']}: {e}")
         return clean
 
-    def _extract_avg_param(self, xml: str, param_id: str) -> float | None:
-        """Extract average value for a parameter from BMKG XML."""
-        import re
-        # Find parameter block
-        pattern = rf'<parameter id="{param_id}"[^>]*>(.*?)</parameter>'
-        match = re.search(pattern, xml, re.DOTALL)
-        if not match:
+    def _extract_avg_param_xml(self, xml_text: str, param_id: str) -> float | None:
+        """
+        Extract average value for a parameter from BMKG DigitalForecast XML.
+        Uses proper XML parsing via ElementTree.
+
+        BMKG XML structure:
+        <data>
+          <forecast>
+            <area ...>
+              <parameter id="t" description="Temperature" type="hourly">
+                <timerange ...>
+                  <value unit="C">28</value>
+                </timerange>
+              </parameter>
+            </area>
+          </forecast>
+        </data>
+        """
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError:
             return None
-        block = match.group(1)
-        # Find all <value> tags
-        values = re.findall(r'<value[^>]*>(\d+\.?\d*)</value>', block)
+
+        values = []
+        # Find all parameter elements with matching id
+        for param in root.iter("parameter"):
+            if param.get("id") == param_id:
+                for timerange in param.iter("timerange"):
+                    for value_elem in timerange.iter("value"):
+                        text = value_elem.text
+                        if text and text.strip():
+                            try:
+                                values.append(float(text.strip()))
+                            except ValueError:
+                                continue
+
         if not values:
             return None
-        nums = [float(v) for v in values if v]
-        return sum(nums) / len(nums) if nums else None
 
-    def _extract_max_rainfall(self, xml: str) -> float:
-        """Extract maximum rainfall from BMKG XML weather parameter."""
-        import re
-        # Look for weather/precipitation parameter
-        pattern = r'<parameter id="(?:weather|ws)"[^>]*>(.*?)</parameter>'
-        match = re.search(pattern, xml, re.DOTALL)
-        if match:
-            values = re.findall(r'<value[^>]*>(\d+\.?\d*)</value>', match.group(1))
-            if values:
-                return max(float(v) for v in values)
+        return round(sum(values) / len(values), 2)
 
-        # Fallback: look for humidity as proxy (high humidity = likely rain)
-        humidity = self._extract_avg_param(xml, "hu")
-        if humidity and humidity > 85:
-            return (humidity - 85) * 3  # rough proxy
-        return 0.0
+    def _extract_max_rainfall_xml(self, xml_text: str) -> float:
+        """
+        Extract maximum rainfall from BMKG XML.
+        Looks for weather code parameter and maps to estimated rainfall.
+        BMKG weather codes: 0=clear, 1=partly cloudy, 2=cloudy, 3=overcast,
+        4=smoke/haze, 5=fog, 60=light rain, 61=rain, 63=heavy rain, 95=thunderstorm
+        """
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError:
+            return 0.0
+
+        # Map weather codes to estimated rainfall (mm)
+        weather_rainfall = {
+            0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 10: 0,
+            60: 5, 61: 15, 63: 40, 80: 20, 95: 60, 97: 80,
+        }
+
+        max_rain = 0.0
+
+        # Look for weather parameter
+        for param in root.iter("parameter"):
+            pid = param.get("id", "")
+            if pid in ("weather", "ws"):
+                for timerange in param.iter("timerange"):
+                    for value_elem in timerange.iter("value"):
+                        text = value_elem.text
+                        if text and text.strip():
+                            try:
+                                code = int(float(text.strip()))
+                                rain = weather_rainfall.get(code, 0)
+                                max_rain = max(max_rain, rain)
+                            except ValueError:
+                                continue
+
+        # Also check humidity as supplementary signal
+        if max_rain == 0:
+            humidity = self._extract_avg_param_xml(xml_text, "hu")
+            if humidity and humidity > 90:
+                max_rain = (humidity - 85) * 2  # rough proxy
+
+        return max_rain
 
     async def load(self, clean: Any) -> None:
         """Upsert weather data to fact_climate."""
+        loaded = 0
         for record in clean:
             # Lookup region_id from kode_bps
             result = await self.db.execute(
@@ -182,6 +243,7 @@ class BMKGWeatherPipeline(DataPipeline):
             )
             row = result.fetchone()
             if not row:
+                logger.debug(f"BMKG: region not found for kode_bps={record['kode_bps']}")
                 continue
 
             await self.db.execute(
@@ -206,4 +268,6 @@ class BMKGWeatherPipeline(DataPipeline):
                     "warning": record["warning_level"],
                 },
             )
+            loaded += 1
         await self.db.commit()
+        logger.info(f"BMKG: Loaded {loaded} province records")

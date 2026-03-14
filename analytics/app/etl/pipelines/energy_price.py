@@ -1,11 +1,15 @@
 """
 Pipeline: Global Energy Prices (Brent Crude, etc.)
 
-Sumber: US EIA API (free, key optional for basic), alternative APIs
+Sumber:
+  1. US EIA API v2 (https://api.eia.gov) — memerlukan API key gratis
+     Daftar di https://www.eia.gov/opendata/register.php
+  2. Fallback: World Bank monthly Brent data (tanpa key)
 Frekuensi: Harian
 """
 
 import logging
+import os
 from datetime import date, timedelta
 
 import httpx
@@ -23,6 +27,7 @@ class EnergyPricePipeline:
     def __init__(self, db: AsyncSession, days: int = 90):
         self.db = db
         self.days = days
+        self.eia_api_key = os.getenv("EIA_API_KEY", "")
         self.client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
 
     async def run(self) -> int:
@@ -40,20 +45,24 @@ class EnergyPricePipeline:
 
     async def _fetch(self) -> list[dict]:
         """
-        Fetch Brent crude prices from free API.
-        Uses EIA (Energy Information Administration) open data or alternative.
+        Fetch Brent crude prices.
+        Primary: EIA API v2 (requires free API key).
+        Fallback: World Bank monthly data (no key needed).
         """
         results = []
 
-        # Try free commodity API endpoints
-        try:
-            brent = await self._fetch_brent_from_eia()
-            results.extend(brent)
-        except Exception as e:
-            logger.warning(f"[{self.name}] EIA fetch failed: {e}")
+        # Try EIA first (daily data, most granular)
+        if self.eia_api_key:
+            try:
+                brent = await self._fetch_brent_from_eia()
+                results.extend(brent)
+            except Exception as e:
+                logger.warning(f"[{self.name}] EIA fetch failed: {e}")
+        else:
+            logger.info(f"[{self.name}] EIA_API_KEY not set, skipping EIA")
 
         if not results:
-            # Fallback: World Bank monthly Brent data
+            # Fallback: World Bank monthly Brent data (no key required)
             try:
                 brent_wb = await self._fetch_brent_from_worldbank()
                 results.extend(brent_wb)
@@ -64,15 +73,16 @@ class EnergyPricePipeline:
 
     async def _fetch_brent_from_eia(self) -> list[dict]:
         """
-        Fetch Brent crude from EIA open data API.
+        Fetch Brent crude from EIA open data API v2.
         Series: PET.RBRTE.D (Europe Brent Spot Price FOB, Daily)
+        Requires API key (free registration at https://www.eia.gov/opendata/register.php)
         """
         end = date.today()
         start = end - timedelta(days=self.days)
 
-        # EIA API v2 (free, no key for basic access)
         url = "https://api.eia.gov/v2/petroleum/pri/spt/data/"
         params = {
+            "api_key": self.eia_api_key,
             "frequency": "daily",
             "data[0]": "value",
             "facets[product][]": "EPCBRENT",
@@ -85,9 +95,16 @@ class EnergyPricePipeline:
 
         resp = await self.client.get(url, params=params)
         if resp.status_code != 200:
+            logger.warning(f"[{self.name}] EIA HTTP {resp.status_code}")
             return []
 
         payload = resp.json()
+
+        # Check for API errors
+        if "error" in payload:
+            logger.warning(f"[{self.name}] EIA API error: {payload['error']}")
+            return []
+
         data_rows = payload.get("response", {}).get("data", [])
 
         results = []
@@ -118,12 +135,16 @@ class EnergyPricePipeline:
         return results
 
     async def _fetch_brent_from_worldbank(self) -> list[dict]:
-        """Fallback: fetch from World Bank (monthly)."""
+        """
+        Fallback: fetch Brent crude from World Bank GEM Commodities (monthly).
+        Source 6 = Global Economic Monitor Commodities.
+        """
         url = "https://api.worldbank.org/v2/country/WLD/indicator/CRUDE_BRENT"
         params = {
             "format": "json",
-            "per_page": "60",
+            "per_page": "120",
             "date": f"2023:{date.today().year}",
+            "source": "6",
         }
 
         resp = await self.client.get(url, params=params)
@@ -139,24 +160,35 @@ class EnergyPricePipeline:
             return []
 
         results = []
+        prev_price = None
         for rec in sorted(payload[1], key=lambda x: str(x.get("date", ""))):
             val = rec.get("value")
             if val is None:
                 continue
             date_str = str(rec.get("date", ""))
+
             if "M" in date_str:
                 parts = date_str.split("M")
-                tanggal = f"{parts[0]}-{parts[1].zfill(2)}-01"
+                if len(parts) == 2:
+                    tanggal = f"{parts[0]}-{parts[1].zfill(2)}-01"
+                else:
+                    continue
             elif len(date_str) == 4:
                 tanggal = f"{date_str}-01-01"
             else:
                 continue
 
+            price = float(val)
+            change_pct = None
+            if prev_price and prev_price > 0:
+                change_pct = round((price - prev_price) / prev_price * 100, 4)
+            prev_price = price
+
             results.append({
                 "tanggal": date.fromisoformat(tanggal),
                 "commodity": "brent",
-                "price": float(val),
-                "change_pct": None,
+                "price": price,
+                "change_pct": change_pct,
                 "sumber": "WORLD_BANK",
             })
 

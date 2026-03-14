@@ -121,31 +121,6 @@ async function gatherDashboardData() {
   };
 }
 
-// Mock data used when database is empty
-const MOCK_DATA = {
-  tanggalData: "2026-03-10",
-  hargaKomoditas: [
-    { komoditas: "Beras", wilayah: "Nasional", harga: 14850, perubahanHarian: 0.3, perubahanMingguan: 1.2, perubahanBulanan: 3.8 },
-    { komoditas: "Cabai Rawit", wilayah: "Nasional", harga: 85000, perubahanHarian: 2.1, perubahanMingguan: 12.0, perubahanBulanan: 18.5 },
-    { komoditas: "Cabai Merah", wilayah: "Nasional", harga: 55000, perubahanHarian: -0.5, perubahanMingguan: -1.2, perubahanBulanan: 5.3 },
-    { komoditas: "Bawang Merah", wilayah: "Nasional", harga: 42000, perubahanHarian: 0.5, perubahanMingguan: 7.0, perubahanBulanan: 11.2 },
-    { komoditas: "Bawang Putih", wilayah: "Nasional", harga: 38000, perubahanHarian: 0.0, perubahanMingguan: -0.3, perubahanBulanan: 2.1 },
-    { komoditas: "Telur Ayam", wilayah: "Nasional", harga: 28500, perubahanHarian: 0.8, perubahanMingguan: 4.0, perubahanBulanan: 6.1 },
-    { komoditas: "Minyak Goreng", wilayah: "Nasional", harga: 18100, perubahanHarian: -0.1, perubahanMingguan: 0.5, perubahanBulanan: 1.2 },
-    { komoditas: "Gula Pasir", wilayah: "Nasional", harga: 17200, perubahanHarian: 0.2, perubahanMingguan: 2.0, perubahanBulanan: 3.5 },
-  ],
-  alertAktif: [
-    { severity: "critical", judul: "Cabai rawit: spike +12% / 7 hari", deskripsi: "Harga cabai rawit naik 12% dalam 7 hari di Jawa Barat, Jawa Timur, Jawa Tengah, Sumatera Utara, Lampung.", komoditas: "Cabai Rawit", wilayah: "Nasional" },
-    { severity: "warning", judul: "Bawang merah: volatilitas tinggi 2 minggu", deskripsi: "Bawang merah CV 18.3% selama 14 hari (threshold 15%).", komoditas: "Bawang Merah", wilayah: "Nasional" },
-    { severity: "critical", judul: "Papua: 3 komoditas naik >5% bersamaan", deskripsi: "Di Papua, beras +5%, telur +7%, gula +4% dalam 7 hari.", komoditas: "Multi", wilayah: "Papua" },
-  ],
-  inflasi: { mtm: 0.42, ytd: 1.23, yoy: 5.21, ihk: 118.35, periode: "Februari 2026" },
-  insightTerakhir: null,
-  forecastRingkasan: null,
-  riskTertinggi: null,
-  kursUsdIdr: null,
-};
-
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
@@ -157,14 +132,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gather data from database or use mock
-    let dashboardData = await gatherDashboardData();
-    const usingMock = !dashboardData;
-    if (!dashboardData) {
-      dashboardData = MOCK_DATA;
-    }
+    // Gather data from database
+    const dashboardData = await gatherDashboardData();
+    const tanggalData = dashboardData?.tanggalData ?? "N/A";
 
-    const dataContext = JSON.stringify(dashboardData, null, 2);
+    const dataContext = dashboardData
+      ? JSON.stringify(dashboardData, null, 2)
+      : '{"message": "Database belum memiliki data. Jalankan ETL pipeline terlebih dahulu."}';
 
     const userPrompt = `Pertanyaan user: ${body.message}
 
@@ -174,8 +148,8 @@ ${dataContext}
 
 <metadata>
 Sumber: PIHPS BI, BPS
-Tanggal data: ${dashboardData.tanggalData}
-${usingMock ? "Catatan: Menggunakan data contoh karena database belum terisi." : ""}
+Tanggal data: ${tanggalData}
+${!dashboardData ? "Catatan: Database belum memiliki data. Informasikan user untuk menjalankan ETL pipeline." : ""}
 </metadata>
 
 Jawab pertanyaan user berdasarkan data di atas. Sertakan angka spesifik dan periode. Format jawabanmu agar ringkas dan mudah dibaca.`;
@@ -191,15 +165,14 @@ Jawab pertanyaan user berdasarkan data di atas. Sertakan angka spesifik dan peri
       response.content[0].type === "text" ? response.content[0].text : "";
 
     // Generate suggested follow-up questions
-    const suggestedQuestions = generateSuggestions(body.message, dashboardData);
+    const suggestedQuestions = generateSuggestions(body.message);
 
     return NextResponse.json({
       message: assistantMessage,
       metadata: {
         sources: ["PIHPS BI", "BPS"],
-        periode: dashboardData.tanggalData,
+        periode: tanggalData,
         intent: "general",
-        usingMockData: usingMock,
       },
       suggestedQuestions,
     });
@@ -225,7 +198,6 @@ Jawab pertanyaan user berdasarkan data di atas. Sertakan angka spesifik dan peri
 
 function generateSuggestions(
   currentQuestion: string,
-  _data: Record<string, unknown>
 ): string[] {
   const suggestions = [
     "Komoditas apa yang paling naik minggu ini?",

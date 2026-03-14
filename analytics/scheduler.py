@@ -12,10 +12,17 @@ Jadwal:
 import asyncio
 import logging
 import os
+import ssl
 import sys
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(__file__))
+
+from dotenv import load_dotenv
+
+_project_root = os.path.dirname(os.path.dirname(__file__))
+load_dotenv(os.path.join(_project_root, ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
@@ -25,10 +32,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger("scheduler")
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres"
-)
+# Resolve database URL
+_raw_url = os.getenv("ANALYTICS_DATABASE_URL") or os.getenv("DATABASE_URL", "")
+if _raw_url.startswith("postgresql://"):
+    DATABASE_URL = _raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif _raw_url.startswith("postgresql+asyncpg://"):
+    DATABASE_URL = _raw_url
+else:
+    DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+
+
+def _create_engine(url: str):
+    kwargs = {"pool_size": 5, "max_overflow": 10, "pool_recycle": 300}
+    if "supabase" in url:
+        ssl_ctx = ssl.create_default_context()
+        kwargs["connect_args"] = {"ssl": ssl_ctx}
+        url = url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+    return create_async_engine(url, **kwargs)
 
 
 async def run_pihps_job(session_factory: async_sessionmaker):
@@ -126,7 +146,7 @@ def main():
         asyncio.run(run_all_once())
         return
 
-    engine = create_async_engine(DATABASE_URL)
+    engine = _create_engine(DATABASE_URL)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     scheduler = AsyncIOScheduler(timezone="Asia/Jakarta")
@@ -176,7 +196,7 @@ def main():
 
 async def run_all_once():
     """Run all jobs once (for cron or manual execution)."""
-    engine = create_async_engine(DATABASE_URL)
+    engine = _create_engine(DATABASE_URL)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     await run_global_job(session_factory)

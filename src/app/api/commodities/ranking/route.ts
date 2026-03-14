@@ -44,20 +44,8 @@ export async function GET(request: NextRequest) {
       .slice(0, limit);
 
     return NextResponse.json({ data: ranking });
-  } catch {
-    // DB not connected — return mock data
-    return NextResponse.json({
-      data: [
-        { kodeKomoditas: "CABAI_RAWIT", namaDisplay: "Cabai Rawit", kategori: "bumbu", satuan: "kg", hargaTerakhir: 85000, perubahanHarian: 2.1, perubahanMingguan: 12.0, perubahanBulanan: 18.5 },
-        { kodeKomoditas: "BAWANG_MERAH", namaDisplay: "Bawang Merah", kategori: "bumbu", satuan: "kg", hargaTerakhir: 42000, perubahanHarian: 0.5, perubahanMingguan: 7.0, perubahanBulanan: 11.2 },
-        { kodeKomoditas: "TELUR_AYAM", namaDisplay: "Telur Ayam", kategori: "protein", satuan: "kg", hargaTerakhir: 28500, perubahanHarian: 0.8, perubahanMingguan: 4.0, perubahanBulanan: 6.1 },
-        { kodeKomoditas: "GULA_PASIR", namaDisplay: "Gula Pasir", kategori: "minyak_gula", satuan: "kg", hargaTerakhir: 17200, perubahanHarian: 0.2, perubahanMingguan: 2.0, perubahanBulanan: 3.5 },
-        { kodeKomoditas: "BERAS", namaDisplay: "Beras", kategori: "bahan_pokok", satuan: "kg", hargaTerakhir: 14850, perubahanHarian: 0.3, perubahanMingguan: 1.2, perubahanBulanan: 3.8 },
-        { kodeKomoditas: "MINYAK_GORENG", namaDisplay: "Minyak Goreng", kategori: "minyak_gula", satuan: "liter", hargaTerakhir: 18100, perubahanHarian: -0.1, perubahanMingguan: 0.5, perubahanBulanan: 1.2 },
-        { kodeKomoditas: "BAWANG_PUTIH", namaDisplay: "Bawang Putih", kategori: "bumbu", satuan: "kg", hargaTerakhir: 38000, perubahanHarian: 0.0, perubahanMingguan: -0.3, perubahanBulanan: 2.1 },
-        { kodeKomoditas: "CABAI_MERAH", namaDisplay: "Cabai Merah", kategori: "bumbu", satuan: "kg", hargaTerakhir: 55000, perubahanHarian: -0.5, perubahanMingguan: -1.2, perubahanBulanan: 5.3 },
-      ],
-      source: "mock",
-    });
+  } catch (error) {
+    console.error("Commodity ranking error:", error);
+    return NextResponse.json({ data: [], error: "Database error" }, { status: 500 });
   }
 }
