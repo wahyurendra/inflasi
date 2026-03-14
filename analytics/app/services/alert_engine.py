@@ -27,7 +27,7 @@ class AlertEngine:
         alerts.extend(await self._check_regional_deviation(tanggal))
         alerts.extend(await self._check_sustained_volatility(tanggal))
         alerts.extend(await self._check_multi_commodity(tanggal))
-        # R5 (weather+price) ditambahkan post-MVP saat data BMKG tersedia
+        alerts.extend(await self._check_weather_price_combo(tanggal))
 
         # Simpan alerts
         for alert in alerts:
@@ -299,6 +299,62 @@ class AlertEngine:
                 ),
                 "nilai_aktual": float(row.rising_count),
                 "nilai_threshold": float(MULTI_COMMODITY_COUNT),
+            })
+        return alerts
+
+    async def _check_weather_price_combo(self, tanggal: date) -> list[dict]:
+        """R5: Warning cuaca (siaga/awas) + harga naik >3% → critical."""
+        query = text("""
+            SELECT
+                fpd.region_id, fpd.commodity_id,
+                dr.nama_provinsi, dc.nama_display,
+                fc.warning_level, fc.curah_hujan,
+                ROUND(((fpd.harga - prev.harga) / prev.harga * 100)::numeric, 2) AS pct_change
+            FROM fact_price_daily fpd
+            JOIN fact_price_daily prev
+                ON prev.commodity_id = fpd.commodity_id
+                AND prev.region_id = fpd.region_id
+                AND prev.tanggal = :week_ago
+            JOIN fact_climate fc
+                ON fc.region_id = fpd.region_id
+                AND fc.tanggal = :tanggal
+            JOIN dim_region dr ON dr.id = fpd.region_id
+            JOIN dim_commodity dc ON dc.id = fpd.commodity_id
+            WHERE fpd.tanggal = :tanggal
+              AND prev.harga > 0
+              AND fc.warning_level IN ('siaga', 'awas')
+              AND ((fpd.harga - prev.harga) / prev.harga * 100) > :threshold
+        """)
+
+        result = await self.db.execute(
+            query,
+            {
+                "tanggal": tanggal,
+                "week_ago": tanggal - timedelta(days=7),
+                "threshold": WEATHER_PRICE_COMBO_PCT,
+            },
+        )
+
+        alerts = []
+        for row in result.fetchall():
+            curah = float(row.curah_hujan) if row.curah_hujan else 0
+            alerts.append({
+                "tanggal": tanggal,
+                "region_id": row.region_id,
+                "commodity_id": row.commodity_id,
+                "alert_type": "weather_price_combo",
+                "severity": "critical",
+                "judul": (
+                    f"{row.nama_display} di {row.nama_provinsi}: "
+                    f"Cuaca {row.warning_level} + harga naik {row.pct_change}%"
+                ),
+                "deskripsi": (
+                    f"Wilayah {row.nama_provinsi} mengalami kondisi cuaca level {row.warning_level} "
+                    f"(curah hujan {curah:.0f}mm) bersamaan dengan kenaikan harga {row.nama_display} "
+                    f"sebesar {row.pct_change}% dalam 7 hari terakhir."
+                ),
+                "nilai_aktual": float(row.pct_change),
+                "nilai_threshold": float(WEATHER_PRICE_COMBO_PCT),
             })
         return alerts
 

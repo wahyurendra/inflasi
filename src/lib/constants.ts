@@ -67,6 +67,22 @@ export const MVP_COMMODITIES = [
     satuan: "kg",
     strategis: true,
   },
+  {
+    kode: "DAGING_AYAM",
+    nama: "Daging Ayam Ras",
+    display: "Daging Ayam",
+    kategori: "protein",
+    satuan: "kg",
+    strategis: true,
+  },
+  {
+    kode: "DAGING_SAPI",
+    nama: "Daging Sapi",
+    display: "Daging Sapi",
+    kategori: "protein",
+    satuan: "kg",
+    strategis: true,
+  },
 ] as const;
 
 // ============================================================

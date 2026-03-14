@@ -9,6 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Area,
+  ComposedChart,
 } from "recharts";
 
 interface PriceDataPoint {
@@ -16,8 +18,17 @@ interface PriceDataPoint {
   harga: number;
 }
 
+interface ForecastDataPoint {
+  tanggal: string;
+  yhat: number;
+  yhatLower: number;
+  yhatUpper: number;
+}
+
 interface PriceLineChartProps {
   data: PriceDataPoint[];
+  forecastData?: ForecastDataPoint[];
+  showForecast?: boolean;
   color?: string;
   height?: number;
   showGrid?: boolean;
@@ -38,7 +49,7 @@ function CustomTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ value: number }>;
+  payload?: Array<{ dataKey: string; value: number; color: string }>;
   label?: string;
 }) {
   if (!active || !payload?.length || !label) return null;
@@ -46,15 +57,31 @@ function CustomTooltip({
   return (
     <div className="bg-white border rounded-lg shadow-lg px-3 py-2">
       <p className="text-xs text-gray-500">{formatDate(label)}</p>
-      <p className="text-sm font-semibold text-gray-900">
-        {formatRupiah(payload[0].value)}
-      </p>
+      {payload.map((p) => {
+        if (p.dataKey === "harga" && p.value) {
+          return (
+            <p key="harga" className="text-sm font-semibold text-gray-900">
+              {formatRupiah(p.value)}
+            </p>
+          );
+        }
+        if (p.dataKey === "yhat" && p.value) {
+          return (
+            <p key="forecast" className="text-sm font-semibold text-orange-600">
+              Forecast: {formatRupiah(p.value)}
+            </p>
+          );
+        }
+        return null;
+      })}
     </div>
   );
 }
 
 export function PriceLineChart({
   data,
+  forecastData,
+  showForecast = true,
   color = "#2563eb",
   height = 280,
   showGrid = true,
@@ -70,15 +97,50 @@ export function PriceLineChart({
     );
   }
 
+  // Merge historical + forecast data
+  const mergedData: Array<Record<string, unknown>> = data.map((d) => ({
+    tanggal: d.tanggal,
+    harga: d.harga,
+  }));
+
+  const hasForecast = showForecast && forecastData && forecastData.length > 0;
+  const lastHistoricalDate = data[data.length - 1]?.tanggal;
+
+  if (hasForecast) {
+    // Add bridge point (last historical + first forecast)
+    mergedData[mergedData.length - 1] = {
+      ...mergedData[mergedData.length - 1],
+      yhat: data[data.length - 1].harga,
+      yhatLower: data[data.length - 1].harga,
+      yhatUpper: data[data.length - 1].harga,
+    };
+
+    for (const f of forecastData!) {
+      mergedData.push({
+        tanggal: f.tanggal,
+        yhat: f.yhat,
+        yhatLower: f.yhatLower,
+        yhatUpper: f.yhatUpper,
+      });
+    }
+  }
+
+  // Calculate Y axis domain from all values
+  const allValues = [
+    ...data.map((d) => d.harga),
+    ...(hasForecast ? forecastData!.map((f) => f.yhatUpper) : []),
+    ...(hasForecast ? forecastData!.map((f) => f.yhatLower) : []),
+  ];
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+  const padding = (maxVal - minVal) * 0.1 || 500;
+
   const prices = data.map((d) => d.harga);
   const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  const padding = (maxPrice - minPrice) * 0.1 || 500;
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+      <ComposedChart data={mergedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />}
         <XAxis
           dataKey="tanggal"
@@ -93,7 +155,7 @@ export function PriceLineChart({
           tick={{ fontSize: 11, fill: "#9ca3af" }}
           tickLine={false}
           axisLine={false}
-          domain={[minPrice - padding, maxPrice + padding]}
+          domain={[minVal - padding, maxVal + padding]}
           width={50}
         />
         <Tooltip content={<CustomTooltip />} />
@@ -108,6 +170,43 @@ export function PriceLineChart({
             fill: "#9ca3af",
           }}
         />
+
+        {/* Forecast/Historical boundary */}
+        {hasForecast && (
+          <ReferenceLine
+            x={lastHistoricalDate}
+            stroke="#f97316"
+            strokeDasharray="4 4"
+            label={{
+              value: "Forecast →",
+              position: "top",
+              fontSize: 10,
+              fill: "#f97316",
+            }}
+          />
+        )}
+
+        {/* Confidence interval band */}
+        {hasForecast && (
+          <Area
+            type="monotone"
+            dataKey="yhatUpper"
+            stroke="none"
+            fill="#fed7aa"
+            fillOpacity={0.4}
+          />
+        )}
+        {hasForecast && (
+          <Area
+            type="monotone"
+            dataKey="yhatLower"
+            stroke="none"
+            fill="#ffffff"
+            fillOpacity={1}
+          />
+        )}
+
+        {/* Historical price line */}
         <Line
           type="monotone"
           dataKey="harga"
@@ -115,8 +214,23 @@ export function PriceLineChart({
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4, stroke: color, strokeWidth: 2, fill: "white" }}
+          connectNulls={false}
         />
-      </LineChart>
+
+        {/* Forecast line */}
+        {hasForecast && (
+          <Line
+            type="monotone"
+            dataKey="yhat"
+            stroke="#f97316"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            dot={false}
+            activeDot={{ r: 4, stroke: "#f97316", strokeWidth: 2, fill: "white" }}
+            connectNulls={false}
+          />
+        )}
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

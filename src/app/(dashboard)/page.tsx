@@ -7,6 +7,8 @@ import { InsightCard } from "@/components/dashboard/insight-card";
 import { AlertBanner } from "@/components/dashboard/alert-banner";
 import { InflationTrendChart } from "@/components/charts/inflation-trend-chart";
 import { useHeadlineInflation } from "@/hooks/use-inflation";
+import { useForecast } from "@/hooks/use-forecast";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 // Mock data — digunakan saat DB belum terisi
 const mockHeadline = {
@@ -55,6 +57,43 @@ const mockInsight = {
     "Cabai rawit mengalami kenaikan 12% dalam 7 hari terakhir, terutama di wilayah Jawa Barat dan Jawa Timur. Kenaikan ini bertepatan dengan curah hujan tinggi dan mendekati periode Ramadan.\n\nBawang merah menunjukkan volatilitas tinggi selama 2 minggu berturut-turut dengan CV 18.3%.\n\nWilayah Papua mencatat 3 komoditas naik bersamaan — perlu perhatian khusus.",
 };
 
+const forecastCommodities = [
+  { kode: "CABAI_RAWIT", nama: "Cabai Rawit", hargaSekarang: 85000 },
+  { kode: "BAWANG_MERAH", nama: "Bawang Merah", hargaSekarang: 42000 },
+  { kode: "BERAS", nama: "Beras", hargaSekarang: 14850 },
+  { kode: "TELUR_AYAM", nama: "Telur Ayam", hargaSekarang: 28500 },
+];
+
+function ForecastTrafficLight({ kode, nama, hargaSekarang }: { kode: string; nama: string; hargaSekarang: number }) {
+  const { data } = useForecast(kode, "00", 7);
+  const lastForecast = data?.data?.[data.data.length - 1];
+  const prediksi = lastForecast?.yhat ?? hargaSekarang;
+  const changePct = ((prediksi - hargaSekarang) / hargaSekarang) * 100;
+
+  const color = changePct > 3 ? "text-red-600" : changePct > 1 ? "text-orange-500" : changePct < -1 ? "text-green-600" : "text-muted-foreground";
+  const bg = changePct > 3 ? "bg-red-50" : changePct > 1 ? "bg-orange-50" : changePct < -1 ? "bg-green-50" : "bg-muted";
+  const Icon = changePct > 0.5 ? TrendingUp : changePct < -0.5 ? TrendingDown : Minus;
+
+  return (
+    <div className={`${bg} rounded-lg px-4 py-3 border`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">{nama}</p>
+          <p className="text-sm font-semibold text-foreground">
+            Rp {Math.round(prediksi).toLocaleString("id-ID")}
+          </p>
+        </div>
+        <div className={`flex items-center gap-1 ${color}`}>
+          <Icon className="h-4 w-4" />
+          <span className="text-sm font-bold">
+            {changePct > 0 ? "+" : ""}{changePct.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OverviewPage() {
   const { data: headlineData } = useHeadlineInflation();
 
@@ -70,10 +109,10 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-gray-900">
+        <h2 className="text-lg font-bold text-foreground">
           Pemantauan Inflasi Pangan Indonesia
         </h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <p className="text-sm text-muted-foreground mt-0.5">
           Data terakhir diperbarui: 10 Maret 2026 11:30 WIB
         </p>
       </div>
@@ -88,11 +127,26 @@ export default function OverviewPage() {
       />
 
       {/* Inflation Trend Chart */}
-      <div className="bg-white rounded-xl border p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">
+      <div className="bg-card rounded-xl border p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">
           Tren Inflasi Bulanan (MtM)
         </h3>
         <InflationTrendChart data={mockInflationTrend} height={180} />
+      </div>
+
+      {/* Forecast 7 Hari */}
+      <div className="bg-card rounded-xl border p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">
+          Forecast Harga 7 Hari
+        </h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Prediksi perubahan harga H+7 dibanding hari ini
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {forecastCommodities.map((c) => (
+            <ForecastTrafficLight key={c.kode} {...c} />
+          ))}
+        </div>
       </div>
 
       {/* Two Column: Commodities + Regions */}

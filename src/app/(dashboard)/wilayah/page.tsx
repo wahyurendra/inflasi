@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IndonesiaChoropleth } from "@/components/maps/indonesia-choropleth";
+import { useRiskScores } from "@/hooks/use-risk-scores";
 
 const mockRegions = [
   { rank: 1, kode: "91", provinsi: "Papua", change: 8.2, risk: "tinggi" as const, alerts: 2 },
@@ -14,7 +15,6 @@ const mockRegions = [
   { rank: 8, kode: "35", provinsi: "Jawa Timur", change: 2.8, risk: "rendah" as const, alerts: 0 },
   { rank: 9, kode: "12", provinsi: "Sumatera Utara", change: 2.5, risk: "rendah" as const, alerts: 0 },
   { rank: 10, kode: "31", provinsi: "DKI Jakarta", change: 1.1, risk: "rendah" as const, alerts: 0 },
-  // Fill rest with moderate values for map
   { rank: 11, kode: "11", provinsi: "Aceh", change: 2.0, risk: "rendah" as const, alerts: 0 },
   { rank: 12, kode: "13", provinsi: "Sumatera Barat", change: 1.8, risk: "rendah" as const, alerts: 0 },
   { rank: 13, kode: "14", provinsi: "Riau", change: 1.5, risk: "rendah" as const, alerts: 0 },
@@ -49,13 +49,20 @@ const riskColors = {
 
 export default function WilayahPage() {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [mapMode, setMapMode] = useState<"price_change" | "risk">("price_change");
 
-  const mapData = mockRegions.map((r) => ({
-    kodeWilayah: r.kode,
-    namaProvinsi: r.provinsi,
-    avgPriceChange: r.change,
-    riskCategory: r.risk,
-  }));
+  const { data: riskScores } = useRiskScores();
+
+  const mapData = mockRegions.map((r) => {
+    const riskData = riskScores?.find((rs) => rs.kodeWilayah === r.kode);
+    return {
+      kodeWilayah: r.kode,
+      namaProvinsi: r.provinsi,
+      avgPriceChange: r.change,
+      riskCategory: riskData?.riskCategory ?? r.risk,
+      hasAlert: r.alerts > 0,
+    };
+  });
 
   const sorted = [...mockRegions].sort((a, b) => b.change - a.change);
   const selectedInfo = selectedRegion
@@ -73,11 +80,36 @@ export default function WilayahPage() {
 
       {/* Map */}
       <div className="bg-white rounded-xl border p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">
-          Heatmap Tekanan Harga Indonesia
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Heatmap Tekanan Harga Indonesia
+          </h3>
+          <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <button
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                mapMode === "price_change"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setMapMode("price_change")}
+            >
+              Perubahan Harga
+            </button>
+            <button
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                mapMode === "risk"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setMapMode("risk")}
+            >
+              Risiko
+            </button>
+          </div>
+        </div>
         <IndonesiaChoropleth
           data={mapData}
+          mode={mapMode}
           onRegionClick={(kode) =>
             setSelectedRegion(kode === selectedRegion ? null : kode)
           }

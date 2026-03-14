@@ -56,6 +56,27 @@ async function gatherDashboardData() {
     orderBy: { tanggal: "desc" },
   });
 
+  // Get forecasts
+  const forecasts = await prisma.analyticsForecast.findMany({
+    where: { tanggal: { gte: new Date() }, horizon: 14 },
+    include: { commodity: true, region: true },
+    orderBy: { tanggal: "asc" },
+    take: 20,
+  }).catch(() => []);
+
+  // Get risk scores
+  const riskScores = await prisma.analyticsRiskScore.findMany({
+    where: { tanggal: latestDate.tanggal },
+    include: { commodity: true, region: true },
+    orderBy: { riskScoreTotal: "desc" },
+    take: 10,
+  }).catch(() => []);
+
+  // Get global signals
+  const latestKurs = await prisma.extExchangeRate.findFirst({
+    orderBy: { tanggal: "desc" },
+  }).catch(() => null);
+
   return {
     tanggalData: latestDate.tanggal.toISOString().slice(0, 10),
     hargaKomoditas: prices.map((p) => ({
@@ -75,6 +96,27 @@ async function gatherDashboardData() {
     })),
     insightTerakhir: latestInsight
       ? { judul: latestInsight.judul, konten: latestInsight.konten }
+      : null,
+    forecastRingkasan: forecasts.length > 0
+      ? forecasts.slice(0, 8).map((f) => ({
+          komoditas: f.commodity.namaDisplay,
+          wilayah: f.region.namaProvinsi,
+          tanggal: f.tanggal.toISOString().slice(0, 10),
+          prediksi: Number(f.yhat),
+          batasAtas: Number(f.yhatUpper),
+          batasBawah: Number(f.yhatLower),
+        }))
+      : null,
+    riskTertinggi: riskScores.length > 0
+      ? riskScores.slice(0, 5).map((r) => ({
+          komoditas: r.commodity.namaDisplay,
+          wilayah: r.region.namaProvinsi,
+          skor: Number(r.riskScoreTotal),
+          kategori: r.riskCategory,
+        }))
+      : null,
+    kursUsdIdr: latestKurs
+      ? { kurs: Number(latestKurs.kursTengah), tanggal: latestKurs.tanggal.toISOString().slice(0, 10) }
       : null,
   };
 }
@@ -99,6 +141,9 @@ const MOCK_DATA = {
   ],
   inflasi: { mtm: 0.42, ytd: 1.23, yoy: 5.21, ihk: 118.35, periode: "Februari 2026" },
   insightTerakhir: null,
+  forecastRingkasan: null,
+  riskTertinggi: null,
+  kursUsdIdr: null,
 };
 
 export async function POST(request: NextRequest) {

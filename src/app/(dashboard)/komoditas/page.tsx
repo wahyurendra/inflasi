@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { PriceLineChart } from "@/components/charts/price-line-chart";
+import { DriverPanel } from "@/components/dashboard/driver-panel";
 import { usePrices } from "@/hooks/use-prices";
+import { useForecast } from "@/hooks/use-forecast";
+import { useDrivers } from "@/hooks/use-drivers";
 
 const commodities = [
   { kode: "CABAI_RAWIT", nama: "Cabai Rawit", harga: 85000, harian: 2.1, mingguan: 12.0, bulanan: 18.5 },
@@ -54,9 +57,12 @@ function ChangeCell({ value }: { value: number }) {
 export default function KomoditasPage() {
   const [selected, setSelected] = useState<string>("CABAI_RAWIT");
   const [days, setDays] = useState(30);
+  const [showForecast, setShowForecast] = useState(true);
 
   // Try fetching from API
   const { data: apiData } = usePrices(selected, "00", days);
+  const { data: forecastData } = useForecast(selected, "00", 14);
+  const { data: driverData } = useDrivers(selected, "00");
 
   // Use API data if available, otherwise mock
   const chartData =
@@ -101,7 +107,16 @@ export default function KomoditasPage() {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <label className="flex items-center gap-1.5 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={showForecast}
+                onChange={(e) => setShowForecast(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Forecast
+            </label>
             <select
               className="text-sm border rounded-lg px-3 py-1.5 bg-white"
               value={selected}
@@ -125,8 +140,18 @@ export default function KomoditasPage() {
             </select>
           </div>
         </div>
-        <PriceLineChart data={chartData} />
+        <PriceLineChart
+          data={chartData}
+          forecastData={forecastData?.data}
+          showForecast={showForecast}
+        />
       </div>
+
+      {/* Driver Panel */}
+      <DriverPanel
+        drivers={driverData?.drivers ?? []}
+        commodity={selectedCommodity?.nama}
+      />
 
       {/* Summary Cards */}
       {selectedCommodity && (

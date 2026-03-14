@@ -1,216 +1,194 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { CopilotChat } from "@copilotkit/react-ui";
+import {
+  useCopilotChatSuggestions,
+  useCopilotReadable,
+  useCopilotAction,
+} from "@copilotkit/react-core";
+import { useQuery } from "@tanstack/react-query";
+import "@copilotkit/react-ui/styles.css";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  metadata?: {
-    sources?: string[];
-    periode?: string;
-  };
-}
+function AIAgentContext() {
+  // Fetch real-time data for the agent
+  const { data: priceData } = useQuery({
+    queryKey: ["ai-agent-prices"],
+    queryFn: () => fetch("/api/prices/daily").then((r) => r.json()),
+  });
 
-const defaultSuggestions = [
-  "Komoditas apa yang paling naik minggu ini?",
-  "Wilayah mana yang perlu diwaspadai?",
-  "Bagaimana tren harga beras bulan ini?",
-  "Jelaskan alert yang sedang aktif",
-];
+  const { data: alertData } = useQuery({
+    queryKey: ["ai-agent-alerts"],
+    queryFn: () => fetch("/api/alerts").then((r) => r.json()),
+  });
 
-export default function AIPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState(defaultSuggestions);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const { data: globalData } = useQuery({
+    queryKey: ["ai-agent-global"],
+    queryFn: () => fetch("/api/global-signals").then((r) => r.json()),
+  });
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Feed context to the agent
+  useCopilotReadable({
+    description:
+      "Data harga komoditas pangan terkini: beras, cabai rawit, cabai merah, bawang merah, bawang putih, telur ayam, minyak goreng, gula pasir. Termasuk perubahan harian, mingguan, dan bulanan.",
+    value: priceData ?? [],
+  });
 
-  async function handleSend(text?: string) {
-    const message = text || input;
-    if (!message.trim() || isLoading) return;
+  useCopilotReadable({
+    description: "Alert aktif inflasi pangan: severity critical/warning/info.",
+    value: alertData ?? [],
+  });
 
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
-    setIsLoading(true);
+  useCopilotReadable({
+    description:
+      "Sinyal global: FAO Food Price Index, harga komoditas global, kurs USD/IDR, GSCPI.",
+    value: globalData ?? {},
+  });
 
-    try {
-      const res = await fetch("/api/ai/chat", {
+  // Agent actions — forecast
+  useCopilotAction({
+    name: "analisisForecast",
+    description:
+      "Prediksi harga komoditas H+7 atau H+14. Gunakan saat user bertanya tentang prediksi atau forecast harga.",
+    parameters: [
+      {
+        name: "komoditas",
+        type: "string",
+        description:
+          "Kode komoditas: CABAI_RAWIT, BERAS, BAWANG_MERAH, TELUR_AYAM, GULA_PASIR, MINYAK_GORENG, BAWANG_PUTIH, CABAI_MERAH",
+        required: true,
+      },
+      {
+        name: "horizon",
+        type: "number",
+        description: "Horizon prediksi: 7 atau 14 hari",
+        required: false,
+      },
+    ],
+    handler: async ({ komoditas, horizon }) => {
+      const h = horizon || 7;
+      const res = await fetch(
+        `/api/forecast?commodity=${komoditas}&region=00&horizon=${h}`
+      );
+      const data = await res.json();
+      if (!data?.data?.length) {
+        return `Forecast untuk ${komoditas} belum tersedia. Model sedang diproses.`;
+      }
+      return JSON.stringify({
+        komoditas,
+        horizon: h,
+        dataPoints: data.data.length,
+        prediksiTerakhir: data.data[data.data.length - 1],
+        modelVersion: data.modelVersion || "v1",
+      });
+    },
+  });
+
+  // Agent actions — driver analysis
+  useCopilotAction({
+    name: "analisisDriver",
+    description:
+      "Analisis penyebab/driver perubahan harga komoditas. Gunakan saat user bertanya kenapa harga naik/turun.",
+    parameters: [
+      {
+        name: "komoditas",
+        type: "string",
+        description: "Kode komoditas: CABAI_RAWIT, BERAS, dll",
+        required: true,
+      },
+    ],
+    handler: async ({ komoditas }) => {
+      const res = await fetch(
+        `/api/drivers?commodity=${komoditas}&region=00`
+      );
+      const data = await res.json();
+      if (!data?.drivers?.length) {
+        return `Data driver untuk ${komoditas} belum tersedia.`;
+      }
+      return JSON.stringify({
+        komoditas: data.commodity || komoditas,
+        tanggal: data.tanggal,
+        drivers: data.drivers,
+      });
+    },
+  });
+
+  // Agent actions — anomaly detection
+  useCopilotAction({
+    name: "analisisAnomali",
+    description:
+      "Cek anomali harga hari ini. Gunakan saat user bertanya tentang anomali atau harga tidak wajar.",
+    parameters: [],
+    handler: async () => {
+      const res = await fetch("/api/alerts?severity=critical");
+      const data = await res.json();
+      const alerts = Array.isArray(data) ? data : data.alerts || [];
+      if (alerts.length === 0) {
+        return "Tidak ada anomali harga yang terdeteksi saat ini.";
+      }
+      return JSON.stringify({
+        jumlahAnomali: alerts.length,
+        anomali: alerts.slice(0, 5),
+      });
+    },
+  });
+
+  // Agent actions — RAG search
+  useCopilotAction({
+    name: "cariData",
+    description:
+      "Cari data spesifik di database. Gunakan saat user bertanya detail yang tidak ada di context.",
+    parameters: [
+      {
+        name: "query",
+        type: "string",
+        description: "Query pencarian, e.g. 'harga beras jawa timur'",
+        required: true,
+      },
+    ],
+    handler: async ({ query }) => {
+      const res = await fetch("/api/ai/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ query }),
       });
-
       const data = await res.json();
+      return JSON.stringify(data);
+    },
+  });
 
-      if (res.ok) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.message,
-            metadata: data.metadata,
-          },
-        ]);
-        if (data.suggestedQuestions?.length) {
-          setSuggestions(data.suggestedQuestions);
-        }
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              data.error ||
-              "Maaf, terjadi kesalahan. Silakan coba lagi.",
-          },
-        ]);
-      }
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "Maaf, tidak dapat terhubung ke server. Pastikan server berjalan dan coba lagi.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  // Chat suggestions
+  useCopilotChatSuggestions({
+    instructions:
+      "Berikan 3 saran pertanyaan dalam Bahasa Indonesia tentang inflasi pangan: harga komoditas, forecast, driver, anomali, atau perbandingan wilayah.",
+    maxSuggestions: 3,
+  });
 
+  return null;
+}
+
+export default function AIPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="mb-4">
         <h2 className="text-lg font-bold text-gray-900">AI Assistant</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Tanya apa saja tentang inflasi pangan Indonesia
+          Agent AI untuk analisis inflasi pangan — forecast, driver, anomali,
+          dan rekomendasi
         </p>
       </div>
 
-      <div className="flex-1 bg-white rounded-xl border overflow-hidden flex flex-col">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <Bot className="h-12 w-12 text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500 mb-1">
-                Halo! Saya asisten analisis inflasi pangan.
-              </p>
-              <p className="text-xs text-gray-400 mb-5">
-                Saya dapat menjawab pertanyaan berdasarkan data harga komoditas, inflasi, dan alert yang tersedia.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg">
-                {suggestions.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => handleSend(q)}
-                    className="text-left text-sm px-3 py-2.5 border rounded-lg text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
-            >
-              {msg.role === "assistant" && (
-                <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="h-4 w-4 text-blue-600" />
-                </div>
-              )}
-              <div
-                className={`max-w-[80%] rounded-xl px-4 py-3 ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-50 text-gray-800"
-                }`}
-              >
-                <p className="text-sm whitespace-pre-line leading-relaxed">
-                  {msg.content}
-                </p>
-                {msg.metadata?.sources?.length ? (
-                  <p className="text-xs mt-2 opacity-60">
-                    Sumber: {msg.metadata.sources.join(", ")} | Periode:{" "}
-                    {msg.metadata.periode}
-                  </p>
-                ) : null}
-              </div>
-              {msg.role === "user" && (
-                <div className="h-7 w-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="h-4 w-4 text-gray-600" />
-                </div>
-              )}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex gap-3">
-              <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Bot className="h-4 w-4 text-blue-600" />
-              </div>
-              <div className="bg-gray-50 rounded-xl px-4 py-3">
-                <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
-              </div>
-            </div>
-          )}
-
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Suggested follow-ups after conversation started */}
-        {messages.length > 0 && !isLoading && (
-          <div className="px-4 py-2 border-t bg-gray-50">
-            <div className="flex gap-2 overflow-x-auto">
-              {suggestions.slice(0, 3).map((q) => (
-                <button
-                  key={q}
-                  onClick={() => handleSend(q)}
-                  className="text-xs px-3 py-1.5 border rounded-full text-gray-500 hover:text-blue-600 hover:border-blue-300 bg-white whitespace-nowrap transition-colors"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Input */}
-        <div className="border-t p-3">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="flex gap-2"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ketik pertanyaan tentang inflasi pangan..."
-              className="flex-1 text-sm border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
+      <div className="flex-1 bg-white rounded-xl border overflow-hidden">
+        <AIAgentContext />
+        <CopilotChat
+          className="h-full"
+          labels={{
+            title: "INFLASI AI Agent",
+            initial:
+              "Halo! Saya INFLASI AI Agent. Saya bisa membantu:\n\n• **Forecast** — Prediksi harga komoditas H+7/H+14\n• **Driver Analysis** — Kenapa harga naik/turun?\n• **Anomali** — Deteksi harga tidak wajar\n• **Data Search** — Cari data harga, wilayah, alert\n\nSilakan tanya apa saja tentang inflasi pangan Indonesia.",
+            placeholder: "Tanya tentang inflasi pangan...",
+          }}
+          instructions="Kamu adalah INFLASI AI Agent — asisten analisis inflasi pangan Indonesia. Jawab dalam Bahasa Indonesia. HANYA gunakan data dari context dan hasil action. JANGAN mengarang angka. Gunakan format angka Indonesia (titik ribuan, koma desimal). Jika data tidak tersedia, katakan dengan jelas. Gunakan action yang tersedia (analisisForecast, analisisDriver, analisisAnomali, cariData) untuk mengambil data yang dibutuhkan."
+        />
       </div>
     </div>
   );

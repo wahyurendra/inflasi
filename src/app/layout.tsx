@@ -15,9 +15,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "INFLASI — Pemantauan Inflasi Pangan",
+  title: "Inflasi.id — Pemantauan Harga Pangan Indonesia",
   description:
-    "Sistem pemantauan inflasi pangan berbasis AI untuk membaca sinyal dini tekanan harga dan memprioritaskan intervensi.",
+    "Platform monitoring harga pangan, inflasi pangan, crowdsourced price reporting, dan price intelligence di Indonesia.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
