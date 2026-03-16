@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     environment:
-      ANALYTICS_API_URL: http://analytics:8000
+      ANALYTICS_API_URL: http://analytics:8002
 
   # Python Analytics Service
   analytics:
