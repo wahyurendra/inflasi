@@ -135,7 +135,7 @@ async def run_analytics_job(session_factory: async_sessionmaker):
         logger.info("Daily insight generated")
 
 
-def main():
+async def main():
     """Start the scheduler with APScheduler."""
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -143,7 +143,7 @@ def main():
     except ImportError:
         logger.error("APScheduler not installed. Install with: pip install apscheduler")
         logger.info("Falling back to one-shot mode: running all jobs now")
-        asyncio.run(run_all_once())
+        await run_all_once()
         return
 
     engine = _create_engine(DATABASE_URL)
@@ -186,10 +186,13 @@ def main():
     for job in scheduler.get_jobs():
         logger.info(f"  {job.name}: {job.trigger}")
 
-    # Keep running
+    # Keep running forever
+    stop_event = asyncio.Event()
     try:
-        asyncio.get_event_loop().run_forever()
+        await stop_event.wait()
     except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
         scheduler.shutdown()
         logger.info("Scheduler stopped")
 
@@ -209,4 +212,4 @@ async def run_all_once():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
