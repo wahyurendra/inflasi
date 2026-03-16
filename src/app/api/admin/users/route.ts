@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,32 +10,19 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const params: Record<string, string> = {};
+    const page = searchParams.get("page") || "1";
+    const limit = searchParams.get("limit") || "20";
     const role = searchParams.get("role");
 
-    const where = role ? { role: role as "ADMIN" | "GOVERNMENT_ANALYST" | "REGIONAL_OFFICER" | "REPORTER" } : {};
+    params.page = page;
+    params.limit = limit;
+    if (role) params.role = role;
 
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          _count: { select: { priceReports: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.user.count({ where }),
-    ]);
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const data = await apiClient.get("/users/admin/list", params, opts);
 
-    return NextResponse.json({ data: users, total, page, limit });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Admin users error:", error);
     return NextResponse.json({ data: [], total: 0, page: 1, limit: 20, error: "Database error" }, { status: 500 });
@@ -60,13 +47,10 @@ export async function PATCH(request: Request) {
     if (role) updateData.role = role;
     if (typeof isActive === "boolean") updateData.isActive = isActive;
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-      select: { id: true, name: true, email: true, role: true, isActive: true },
-    });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const data = await apiClient.patch("/users/admin/" + userId, updateData, opts);
 
-    return NextResponse.json({ data: user });
+    return NextResponse.json({ data });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

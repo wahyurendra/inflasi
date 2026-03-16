@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function POST(request: Request) {
   try {
@@ -21,47 +20,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await apiClient.post<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+    }>("/auth/register", { name, email, password, role });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "Email sudah terdaftar" },
-        { status: 409 }
-      );
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    const validRoles = ["REPORTER", "GOVERNMENT_ANALYST", "REGIONAL_OFFICER"];
-    const userRole = validRoles.includes(role) ? role : "REPORTER";
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        hashedPassword,
-        role: userRole,
-      },
-    });
-
-    return NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Gagal mendaftarkan akun. Silakan coba lagi." },
-      { status: 500 }
-    );
+
+    const message =
+      error instanceof Error && error.message.includes("409")
+        ? "Email sudah terdaftar"
+        : "Gagal mendaftarkan akun. Silakan coba lagi.";
+    const status =
+      error instanceof Error && error.message.includes("409") ? 409 : 500;
+
+    return NextResponse.json({ error: message }, { status });
   }
 }

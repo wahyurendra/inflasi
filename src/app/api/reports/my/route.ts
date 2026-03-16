@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -9,31 +9,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  const params: Record<string, string> = {};
+  params.page = searchParams.get("page") || "1";
+  params.limit = searchParams.get("limit") || "20";
 
   try {
-    const [reports, total] = await Promise.all([
-      prisma.priceReport.findMany({
-        where: { userId: session.user.id },
-        include: {
-          commodity: { select: { namaDisplay: true, kodeKomoditas: true } },
-          region: { select: { namaProvinsi: true, kodeWilayah: true } },
-          photos: true,
-        },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.priceReport.count({ where: { userId: session.user.id } }),
-    ]);
-
-    return NextResponse.json({
-      data: reports,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-    });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const data = await apiClient.get("/reports/my", params, opts);
+    return NextResponse.json(data);
   } catch {
     return NextResponse.json({
       data: [],

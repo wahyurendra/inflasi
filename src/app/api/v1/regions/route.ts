@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 import { REGIONS } from "@/lib/constants";
 
 export async function GET() {
   try {
-    const regions = await prisma.dimRegion.findMany({
-      select: {
-        id: true,
-        namaProvinsi: true,
-        kodeWilayah: true,
-        levelWilayah: true,
-      },
-      orderBy: { namaProvinsi: "asc" },
-    });
-
-    return NextResponse.json({ data: regions });
+    const result = await apiClient.get("/regions/");
+    return NextResponse.json({ data: result });
   } catch {
     const data = REGIONS.map((r, i) => ({
       id: i + 1,

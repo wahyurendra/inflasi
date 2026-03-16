@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const report = await prisma.priceReport.findUnique({
-      where: { id: params.id },
-      include: {
-        commodity: true,
-        region: true,
-        user: { select: { name: true, email: true } },
-        photos: true,
-      },
-    });
+    const report = await apiClient.get("/reports/" + params.id);
 
     if (!report) {
       return NextResponse.json({ error: "Laporan tidak ditemukan" }, { status: 404 });
@@ -49,19 +41,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
     }
 
-    const report = await prisma.priceReport.update({
-      where: { id: params.id },
-      data: {
-        status,
-        rejectionNote: status === "REJECTED" ? rejectionNote : undefined,
-        reviewedBy: session.user.id,
-        reviewedAt: new Date(),
-      },
-      include: {
-        commodity: { select: { namaDisplay: true } },
-        region: { select: { namaProvinsi: true } },
-      },
-    });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const report = await apiClient.patch("/reports/" + params.id, { status, rejectionNote }, opts);
 
     return NextResponse.json({ data: report });
   } catch (error) {

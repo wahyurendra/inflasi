@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import bcrypt from "bcryptjs";
+import { apiClient } from "@/lib/api-client";
 
 export async function PATCH(request: Request) {
   try {
@@ -21,28 +20,16 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Password baru minimal 6 karakter" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { hashedPassword: true },
-    });
-
-    if (!user?.hashedPassword) {
-      return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
-    }
-
-    const isValid = await bcrypt.compare(oldPassword, user.hashedPassword);
-    if (!isValid) {
-      return NextResponse.json({ error: "Password lama salah" }, { status: 400 });
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { hashedPassword },
-    });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    await apiClient.patch("/users/" + session.user.id + "/password", { oldPassword, newPassword }, opts);
 
     return NextResponse.json({ message: "Password berhasil diperbarui" });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.includes("400")
+        ? "Password lama salah"
+        : "Internal server error";
+    const status = error instanceof Error && error.message.includes("400") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET() {
   try {
@@ -9,64 +9,10 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(startOfDay);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const data = await apiClient.get("/users/admin/stats", undefined, opts);
 
-    const [
-      totalUsers,
-      activeUsers,
-      totalReports,
-      pendingReports,
-      approvedReports,
-      rejectedReports,
-      flaggedReports,
-      reportsToday,
-      reportsThisWeek,
-      reportsThisMonth,
-      adminCount,
-      analystCount,
-      officerCount,
-      reporterCount,
-    ] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { isActive: true } }),
-      prisma.priceReport.count(),
-      prisma.priceReport.count({ where: { status: "PENDING" } }),
-      prisma.priceReport.count({ where: { status: "APPROVED" } }),
-      prisma.priceReport.count({ where: { status: "REJECTED" } }),
-      prisma.priceReport.count({ where: { status: "FLAGGED" } }),
-      prisma.priceReport.count({ where: { createdAt: { gte: startOfDay } } }),
-      prisma.priceReport.count({ where: { createdAt: { gte: startOfWeek } } }),
-      prisma.priceReport.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.user.count({ where: { role: "ADMIN" } }),
-      prisma.user.count({ where: { role: "GOVERNMENT_ANALYST" } }),
-      prisma.user.count({ where: { role: "REGIONAL_OFFICER" } }),
-      prisma.user.count({ where: { role: "REPORTER" } }),
-    ]);
-
-    return NextResponse.json({
-      data: {
-        totalUsers,
-        activeUsers,
-        totalReports,
-        pendingReports,
-        approvedReports,
-        rejectedReports,
-        flaggedReports,
-        reportsToday,
-        reportsThisWeek,
-        reportsThisMonth,
-        usersByRole: {
-          ADMIN: adminCount,
-          GOVERNMENT_ANALYST: analystCount,
-          REGIONAL_OFFICER: officerCount,
-          REPORTER: reporterCount,
-        },
-      },
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Admin stats error:", error);
     return NextResponse.json({ error: "Database error" }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET() {
   const health: Record<string, unknown> = {
@@ -8,33 +8,23 @@ export async function GET() {
     version: "0.2.0",
   };
 
-  // Check database
+  // Check database via FastAPI backend
   try {
-    const regionCount = await prisma.dimRegion.count();
-    const latestPrice = await prisma.factPriceDaily.findFirst({
-      orderBy: { tanggal: "desc" },
-      select: { tanggal: true },
-    });
-    const activeAlerts = await prisma.analyticsAlert.count({
-      where: { isActive: true },
-    });
-
+    const dbStats = await apiClient.get("/health/db-stats");
     health.database = {
       connected: true,
-      regions: regionCount,
-      latestPriceDate: latestPrice?.tanggal?.toISOString().slice(0, 10) || null,
-      activeAlerts,
+      ...dbStats as Record<string, unknown>,
     };
   } catch {
     health.database = { connected: false };
     health.status = "degraded";
   }
 
-  // Check analytics service
+  // Check analytics service via FastAPI root health (at /health, not /api/health)
   try {
-    const analyticsUrl = process.env.ANALYTICS_API_URL || "http://localhost:8000";
+    const analyticsUrl = process.env.ANALYTICS_API_URL || "http://localhost:8002";
     const resp = await fetch(`${analyticsUrl}/health`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5_000),
     });
     health.analytics = { connected: resp.ok };
   } catch {

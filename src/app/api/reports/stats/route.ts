@@ -1,23 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET() {
   try {
-    const [total, approved, pending, flagged] = await Promise.all([
-      prisma.priceReport.count(),
-      prisma.priceReport.count({ where: { status: "APPROVED" } }),
-      prisma.priceReport.count({ where: { status: "PENDING" } }),
-      prisma.priceReport.count({ where: { status: "FLAGGED" } }),
-    ]);
-
-    return NextResponse.json({
-      total,
-      approved,
-      pending,
-      flagged,
-      rejected: total - approved - pending - flagged,
-      approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,
-    });
+    const data = await apiClient.get("/reports/stats");
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Report stats error:", error);
     return NextResponse.json({

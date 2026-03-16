@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function createNotification(
   userId: string,
@@ -8,8 +8,12 @@ export async function createNotification(
   data?: Record<string, unknown>
 ) {
   try {
-    return await prisma.notification.create({
-      data: { userId, type, title, message, data: data ? JSON.parse(JSON.stringify(data)) : undefined },
+    return await apiClient.post("/notifications/", {
+      userId,
+      type,
+      title,
+      message,
+      data: data ?? undefined,
     });
   } catch {
     console.error("Failed to create notification");

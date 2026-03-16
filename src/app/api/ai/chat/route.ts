@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 const anthropic = new Anthropic();
 
@@ -29,96 +29,11 @@ interface ChatRequest {
 }
 
 async function gatherDashboardData() {
-  // Get latest prices for all commodities (national average)
-  const latestDate = await prisma.factPriceDaily.findFirst({
-    orderBy: { tanggal: "desc" },
-    select: { tanggal: true },
-  });
-
-  if (!latestDate) {
+  try {
+    return await apiClient.get("/ai/context/dashboard");
+  } catch {
     return null;
   }
-
-  const prices = await prisma.factPriceDaily.findMany({
-    where: { tanggal: latestDate.tanggal },
-    include: { commodity: true, region: true },
-    orderBy: { commodity: { namaDisplay: "asc" } },
-  });
-
-  const alerts = await prisma.analyticsAlert.findMany({
-    where: { isActive: true },
-    include: { commodity: true, region: true },
-    orderBy: [{ severity: "asc" }, { tanggal: "desc" }],
-    take: 10,
-  });
-
-  const latestInsight = await prisma.analyticsInsight.findFirst({
-    orderBy: { tanggal: "desc" },
-  });
-
-  // Get forecasts
-  const forecasts = await prisma.analyticsForecast.findMany({
-    where: { tanggal: { gte: new Date() }, horizon: 14 },
-    include: { commodity: true, region: true },
-    orderBy: { tanggal: "asc" },
-    take: 20,
-  }).catch(() => []);
-
-  // Get risk scores
-  const riskScores = await prisma.analyticsRiskScore.findMany({
-    where: { tanggal: latestDate.tanggal },
-    include: { commodity: true, region: true },
-    orderBy: { riskScoreTotal: "desc" },
-    take: 10,
-  }).catch(() => []);
-
-  // Get global signals
-  const latestKurs = await prisma.extExchangeRate.findFirst({
-    orderBy: { tanggal: "desc" },
-  }).catch(() => null);
-
-  return {
-    tanggalData: latestDate.tanggal.toISOString().slice(0, 10),
-    hargaKomoditas: prices.map((p) => ({
-      komoditas: p.commodity.namaDisplay,
-      wilayah: p.region.namaProvinsi,
-      harga: Number(p.harga),
-      perubahanHarian: p.perubahanHarian ? Number(p.perubahanHarian) : null,
-      perubahanMingguan: p.perubahanMingguan ? Number(p.perubahanMingguan) : null,
-      perubahanBulanan: p.perubahanBulanan ? Number(p.perubahanBulanan) : null,
-    })),
-    alertAktif: alerts.map((a) => ({
-      severity: a.severity,
-      judul: a.judul,
-      deskripsi: a.deskripsi,
-      komoditas: a.commodity.namaDisplay,
-      wilayah: a.region.namaProvinsi,
-    })),
-    insightTerakhir: latestInsight
-      ? { judul: latestInsight.judul, konten: latestInsight.konten }
-      : null,
-    forecastRingkasan: forecasts.length > 0
-      ? forecasts.slice(0, 8).map((f) => ({
-          komoditas: f.commodity.namaDisplay,
-          wilayah: f.region.namaProvinsi,
-          tanggal: f.tanggal.toISOString().slice(0, 10),
-          prediksi: Number(f.yhat),
-          batasAtas: Number(f.yhatUpper),
-          batasBawah: Number(f.yhatLower),
-        }))
-      : null,
-    riskTertinggi: riskScores.length > 0
-      ? riskScores.slice(0, 5).map((r) => ({
-          komoditas: r.commodity.namaDisplay,
-          wilayah: r.region.namaProvinsi,
-          skor: Number(r.riskScoreTotal),
-          kategori: r.riskCategory,
-        }))
-      : null,
-    kursUsdIdr: latestKurs
-      ? { kurs: Number(latestKurs.kursTengah), tanggal: latestKurs.tanggal.toISOString().slice(0, 10) }
-      : null,
-  };
 }
 
 export async function POST(request: NextRequest) {
@@ -132,9 +47,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gather data from database
-    const dashboardData = await gatherDashboardData();
-    const tanggalData = dashboardData?.tanggalData ?? "N/A";
+    // Gather data from API
+    const dashboardData = await gatherDashboardData() as Record<string, unknown> | null;
+    const tanggalData = (dashboardData?.tanggalData as string) ?? "N/A";
 
     const dataContext = dashboardData
       ? JSON.stringify(dashboardData, null, 2)

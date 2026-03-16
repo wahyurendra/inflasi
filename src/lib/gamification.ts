@@ -1,4 +1,9 @@
-import { prisma } from "@/lib/db";
+// TODO: This entire gamification module should be migrated to the FastAPI backend.
+// The points/badge logic should run server-side in the reports endpoint after a report
+// is approved. For now, the Prisma calls are replaced with apiClient calls for data access,
+// but the full logic should eventually live in FastAPI as a single /gamification/award-points endpoint.
+
+import { apiClient } from "@/lib/api-client";
 import { notifyBadgeEarned } from "@/lib/notifications";
 
 const BADGE_DEFINITIONS = [
@@ -10,6 +15,21 @@ const BADGE_DEFINITIONS = [
   { code: "AKURASI_TINGGI", name: "Akurasi Tinggi", threshold: 90, category: "accuracy", icon: "Target" },
 ];
 
+interface UserPoints {
+  userId: string;
+  totalPoints: number;
+  monthlyPoints: number;
+  totalReports: number;
+  approvedReports: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastReportDate: string | null;
+}
+
+interface UserBadge {
+  badge: { code: string };
+}
+
 export async function awardPoints(
   userId: string,
   hasPhotos: boolean = false
@@ -19,21 +39,11 @@ export async function awardPoints(
   const photoBonus = hasPhotos ? 5 : 0;
 
   try {
-    const userPoints = await prisma.userPoints.upsert({
-      where: { userId },
-      update: {
-        totalPoints: { increment: basePoints + photoBonus },
-        monthlyPoints: { increment: basePoints + photoBonus },
-        totalReports: { increment: 1 },
-        approvedReports: { increment: 1 },
-      },
-      create: {
-        userId,
-        totalPoints: basePoints + photoBonus,
-        monthlyPoints: basePoints + photoBonus,
-        totalReports: 1,
-        approvedReports: 1,
-      },
+    // Upsert user points via API
+    const userPoints = await apiClient.post<UserPoints>("/gamification/upsert-points", {
+      userId,
+      pointsToAdd: basePoints + photoBonus,
+      incrementReports: true,
     });
 
     // Update streak
@@ -52,12 +62,10 @@ export async function awardPoints(
       if (diffDays === 1) {
         newStreak += 1;
         // Streak bonus
-        await prisma.userPoints.update({
-          where: { userId },
-          data: {
-            totalPoints: { increment: 2 },
-            monthlyPoints: { increment: 2 },
-          },
+        await apiClient.post("/gamification/upsert-points", {
+          userId,
+          pointsToAdd: 2,
+          incrementReports: false,
         });
       } else if (diffDays > 1) {
         newStreak = 1;
@@ -66,28 +74,30 @@ export async function awardPoints(
       newStreak = 1;
     }
 
-    await prisma.userPoints.update({
-      where: { userId },
-      data: {
-        currentStreak: newStreak,
-        longestStreak: Math.max(newStreak, userPoints.longestStreak),
-        lastReportDate: today,
-      },
+    await apiClient.patch("/gamification/update-streak", {
+      userId,
+      currentStreak: newStreak,
+      longestStreak: Math.max(newStreak, userPoints.longestStreak),
+      lastReportDate: today.toISOString(),
     });
 
     // Check badges
-    const existing = await prisma.userBadge.findMany({
-      where: { userId },
-      select: { badge: { select: { code: true } } },
-    });
+    const existing = await apiClient.get<UserBadge[]>(
+      "/gamification/user-badges",
+      { userId }
+    );
     const existingCodes = new Set(existing.map((b) => b.badge.code));
+
+    // Re-fetch updated points
+    const updated = await apiClient.get<UserPoints>(
+      "/gamification/user-points",
+      { userId }
+    );
 
     for (const def of BADGE_DEFINITIONS) {
       if (existingCodes.has(def.code)) continue;
 
       let earned = false;
-      const updated = await prisma.userPoints.findUnique({ where: { userId } });
-      if (!updated) continue;
 
       if (def.category === "reports" && updated.approvedReports >= def.threshold) {
         earned = true;
@@ -102,22 +112,14 @@ export async function awardPoints(
       }
 
       if (earned) {
-        let badge = await prisma.badge.findUnique({ where: { code: def.code } });
-        if (!badge) {
-          badge = await prisma.badge.create({
-            data: {
-              code: def.code,
-              name: def.name,
-              description: `Diperoleh setelah ${def.threshold} ${def.category === "reports" ? "laporan disetujui" : def.category === "streak" ? "hari berturut-turut" : "% akurasi"}`,
-              icon: def.icon,
-              threshold: def.threshold,
-              category: def.category,
-            },
-          });
-        }
-
-        await prisma.userBadge.create({
-          data: { userId, badgeId: badge.id },
+        await apiClient.post("/gamification/award-badge", {
+          userId,
+          badgeCode: def.code,
+          badgeName: def.name,
+          badgeDescription: `Diperoleh setelah ${def.threshold} ${def.category === "reports" ? "laporan disetujui" : def.category === "streak" ? "hari berturut-turut" : "% akurasi"}`,
+          badgeIcon: def.icon,
+          badgeThreshold: def.threshold,
+          badgeCategory: def.category,
         });
         newBadges.push(def.name);
         await notifyBadgeEarned(userId, def.name);

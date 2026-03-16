@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET() {
   const session = await auth();
@@ -9,10 +9,9 @@ export async function GET() {
   }
 
   try {
-    const count = await prisma.notification.count({
-      where: { userId: session.user.id, isRead: false },
-    });
-    return NextResponse.json({ count });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const data = await apiClient.get<{ count: number }>("/notifications/count", undefined, opts);
+    return NextResponse.json(data);
   } catch {
     return NextResponse.json({ count: 0 });
   }

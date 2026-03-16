@@ -1,32 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET(request: NextRequest) {
   const tipe = request.nextUrl.searchParams.get("type") || "harian";
 
   try {
-    const insight = await prisma.analyticsInsight.findFirst({
-      where: { tipe },
-      orderBy: { tanggal: "desc" },
-    });
+    const params: Record<string, string> = { type: tipe };
 
-    if (!insight) {
-      return NextResponse.json({
-        data: null,
-        message: "Belum ada insight tersedia",
-      });
-    }
+    const result = await apiClient.get("/insights/latest", params);
 
-    return NextResponse.json({
-      data: {
-        id: insight.id,
-        tanggal: insight.tanggal.toISOString().slice(0, 10),
-        tipe: insight.tipe,
-        judul: insight.judul,
-        konten: insight.konten,
-        dataSnapshot: insight.dataSnapshot,
-      },
-    });
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ data: null, source: "mock" });
   }

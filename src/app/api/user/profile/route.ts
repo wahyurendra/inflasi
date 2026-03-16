@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 export async function GET() {
   try {
@@ -9,18 +9,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        regionId: true,
-        image: true,
-        createdAt: true,
-      },
-    });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const user = await apiClient.get("/users/" + session.user.id + "/profile", undefined, opts);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -46,11 +36,8 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Nama minimal 2 karakter" }, { status: 400 });
     }
 
-    const user = await prisma.user.update({
-      where: { id: session.user.id },
-      data: { name: name.trim() },
-      select: { id: true, name: true, email: true, role: true },
-    });
+    const opts = { userId: session.user.id, userRole: session.user.role };
+    const user = await apiClient.patch("/users/" + session.user.id + "/profile", { name: name.trim() }, opts);
 
     return NextResponse.json({ data: user });
   } catch {

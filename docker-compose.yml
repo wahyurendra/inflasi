@@ -10,22 +10,8 @@ services:
       - .env
     environment:
       ANALYTICS_API_URL: http://analytics:8002
+      AUTH_SECRET: ${NEXTAUTH_SECRET}
+      AUTH_URL: https://inflasi.id
+      AUTH_TRUST_HOST: "true"
 
-  # Python Analytics Service
-  analytics:
-    build: ./analytics
-    ports:
-      - "8002:8002"
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: ${ANALYTICS_DATABASE_URL}
-
-  # ETL Scheduler
-  scheduler:
-    build: ./analytics
-    command: python scheduler.py
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: ${ANALYTICS_DATABASE_URL}
+ 

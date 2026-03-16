@@ -2,8 +2,8 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 
 type UserRoleType = "ADMIN" | "GOVERNMENT_ANALYST" | "REGIONAL_OFFICER" | "REPORTER";
 
@@ -27,6 +27,8 @@ declare module "next-auth" {
 export const authConfig: NextAuthConfig = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma) as any,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -39,56 +41,75 @@ export const authConfig: NextAuthConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        console.log("[AUTH] Login attempt:", credentials?.email);
 
+        if (!credentials?.email || !credentials?.password) {
+          console.log("[AUTH] Missing email or password");
+          return null;
+        }
+
+        // Demo login — selalu tersedia
+        if (
+          credentials.email === "admin@inflasi.id" &&
+          credentials.password === "admin123"
+        ) {
+          console.log("[AUTH] Demo admin login success");
+          return {
+            id: "demo-admin",
+            name: "Admin Demo",
+            email: "admin@inflasi.id",
+            role: "ADMIN" as const,
+            regionId: null,
+          };
+        }
+        if (
+          credentials.email === "demo@inflasi.id" &&
+          credentials.password === "demo123"
+        ) {
+          console.log("[AUTH] Demo reporter login success");
+          return {
+            id: "demo-reporter",
+            name: "Reporter Demo",
+            email: "demo@inflasi.id",
+            role: "REPORTER" as const,
+            regionId: null,
+          };
+        }
+
+        // Database login via FastAPI backend
         try {
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
+          console.log("[AUTH] Verifying credentials via API for:", credentials.email);
+          const result = await apiClient.post<{
+            authenticated: boolean;
+            user: {
+              id: string;
+              name: string | null;
+              email: string;
+              image: string | null;
+              role: UserRoleType;
+              regionId: number | null;
+            } | null;
+          }>("/auth/verify-credentials", {
+            email: credentials.email,
+            password: credentials.password,
           });
 
-          if (!user || !user.hashedPassword || !user.isActive) return null;
+          if (!result.authenticated || !result.user) {
+            console.log("[AUTH] User not found or invalid:", credentials.email);
+            return null;
+          }
 
-          const passwordMatch = await bcrypt.compare(
-            credentials.password as string,
-            user.hashedPassword
-          );
-
-          if (!passwordMatch) return null;
-
+          console.log("[AUTH] API login success:", credentials.email, "role:", result.user.role);
           return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            role: user.role,
-            regionId: user.regionId,
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            image: result.user.image,
+            role: result.user.role,
+            regionId: result.user.regionId,
           };
-        } catch {
-          // DB not available — allow demo login
-          if (
-            credentials.email === "admin@inflasi.id" &&
-            credentials.password === "admin123"
-          ) {
-            return {
-              id: "demo-admin",
-              name: "Admin Demo",
-              email: "admin@inflasi.id",
-              role: "ADMIN" as const,
-              regionId: null,
-            };
-          }
-          if (
-            credentials.email === "demo@inflasi.id" &&
-            credentials.password === "demo123"
-          ) {
-            return {
-              id: "demo-reporter",
-              name: "Reporter Demo",
-              email: "demo@inflasi.id",
-              role: "REPORTER" as const,
-              regionId: null,
-            };
-          }
+        } catch (error) {
+          console.error("[AUTH] API error:", error);
           return null;
         }
       },
