@@ -3,7 +3,7 @@
  * All database operations go through this client.
  */
 
-const ANALYTICS_URL = process.env.ANALYTICS_API_URL || "http://localhost:8002";
+const ANALYTICS_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.inflasi.id";
 const TIMEOUT_MS = 10_000;
 
 interface ApiClientOptions {
