@@ -16,17 +16,17 @@ export function RegionRanking({
   title = "Wilayah Paling Tertekan",
 }: RegionRankingProps) {
   return (
-    <div className="bg-white rounded-xl border p-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="bg-card rounded-xl border p-5">
+      <h3 className="text-sm font-semibold text-foreground mb-4">{title}</h3>
       <div className="space-y-3">
         {data.map((item, idx) => (
           <div key={item.namaProvinsi} className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-400 w-5">
+              <span className="text-sm font-medium text-muted-foreground w-5">
                 {idx + 1}.
               </span>
               <div>
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-foreground">
                   {item.namaProvinsi}
                 </p>
                 {item.alertCount > 0 && (
@@ -39,10 +39,10 @@ export function RegionRanking({
             <span
               className={`text-sm font-semibold ${
                 item.avgPriceChange > 5
-                  ? "text-red-600"
+                  ? "text-red-500"
                   : item.avgPriceChange > 2
                     ? "text-orange-500"
-                    : "text-gray-600"
+                    : "text-muted-foreground"
               }`}
             >
               +{item.avgPriceChange.toFixed(1)}%

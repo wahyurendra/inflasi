@@ -14,9 +14,9 @@ function StatCard({ label, value, change, subtext }: StatCardProps) {
   const isNegative = change !== undefined && change < 0;
 
   return (
-    <div className="bg-white rounded-xl border p-5">
-      <p className="text-sm text-gray-500 font-medium">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+    <div className="bg-card rounded-xl border p-5">
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
       <div className="flex items-center gap-1.5 mt-2">
         {change !== undefined && (
           <>
@@ -25,7 +25,7 @@ function StatCard({ label, value, change, subtext }: StatCardProps) {
             ) : isNegative ? (
               <TrendingDown className="h-4 w-4 text-green-500" />
             ) : (
-              <Minus className="h-4 w-4 text-gray-400" />
+              <Minus className="h-4 w-4 text-muted-foreground" />
             )}
             <span
               className={`text-sm font-medium ${
@@ -33,7 +33,7 @@ function StatCard({ label, value, change, subtext }: StatCardProps) {
                   ? "text-red-600"
                   : isNegative
                     ? "text-green-600"
-                    : "text-gray-500"
+                    : "text-muted-foreground"
               }`}
             >
               {change > 0 ? "+" : ""}
@@ -41,7 +41,7 @@ function StatCard({ label, value, change, subtext }: StatCardProps) {
             </span>
           </>
         )}
-        {subtext && <span className="text-xs text-gray-400 ml-1">{subtext}</span>}
+        {subtext && <span className="ml-1 text-xs text-muted-foreground">{subtext}</span>}
       </div>
     </div>
   );

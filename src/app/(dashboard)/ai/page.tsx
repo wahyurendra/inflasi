@@ -170,14 +170,14 @@ export default function AIPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="mb-4">
-        <h2 className="text-lg font-bold text-gray-900">AI Assistant</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className="text-lg font-bold text-foreground">AI Assistant</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Agent AI untuk analisis inflasi pangan — forecast, driver, anomali,
           dan rekomendasi
         </p>
       </div>
 
-      <div className="flex-1 bg-white rounded-xl border overflow-hidden">
+      <div className="flex-1 rounded-xl border bg-card overflow-hidden">
         <AIAgentContext />
         <CopilotChat
           className="h-full"

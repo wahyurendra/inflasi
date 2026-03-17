@@ -9,8 +9,8 @@ import { useForecast } from "@/hooks/use-forecast";
 import { useDrivers } from "@/hooks/use-drivers";
 
 function ChangeCell({ value }: { value: number | null }) {
-  if (value === null) return <td className="px-4 py-3 text-sm text-gray-400">-</td>;
-  const color = value > 0 ? "text-red-600" : value < 0 ? "text-green-600" : "text-gray-500";
+  if (value === null) return <td className="px-4 py-3 text-sm text-muted-foreground">-</td>;
+  const color = value > 0 ? "text-red-600" : value < 0 ? "text-green-600" : "text-muted-foreground";
   const Icon = value > 0 ? TrendingUp : value < 0 ? TrendingDown : Minus;
 
   return (
@@ -57,21 +57,21 @@ export default function KomoditasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-gray-900">Harga Komoditas</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className="text-lg font-bold text-foreground">Harga Komoditas</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Tren harga harian komoditas pangan strategis
         </p>
       </div>
 
       {/* Chart */}
-      <div className="bg-white rounded-xl border p-6">
+      <div className="bg-card rounded-xl border p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-foreground">
               Tren Harga {selectedCommodity?.nama ?? "—"}
             </h3>
             {selectedCommodity && selectedCommodity.harga > 0 && (
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Harga terakhir: Rp{" "}
                 {selectedCommodity.harga.toLocaleString("id-ID")} | Mingguan:{" "}
                 <span
@@ -88,18 +88,18 @@ export default function KomoditasPage() {
             )}
           </div>
           <div className="flex gap-2 items-center">
-            <label className="flex items-center gap-1.5 text-xs text-gray-600">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <input
                 type="checkbox"
                 checked={showForecast}
                 onChange={(e) => setShowForecast(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-input bg-background"
               />
               Forecast
             </label>
             {commodities.length > 0 ? (
               <select
-                className="text-sm border rounded-lg px-3 py-1.5 bg-white"
+                className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground"
                 value={selected}
                 onChange={(e) => setSelected(e.target.value)}
               >
@@ -110,10 +110,10 @@ export default function KomoditasPage() {
                 ))}
               </select>
             ) : (
-              <span className="text-sm text-gray-400">Memuat komoditas...</span>
+              <span className="text-sm text-muted-foreground">Memuat komoditas...</span>
             )}
             <select
-              className="text-sm border rounded-lg px-3 py-1.5 bg-white"
+              className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground"
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
             >
@@ -131,7 +131,7 @@ export default function KomoditasPage() {
             showForecast={showForecast}
           />
         ) : (
-          <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">
+          <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
             {rankingLoading ? "Memuat data..." : "Belum ada data harga tersedia."}
           </div>
         )}
@@ -146,39 +146,39 @@ export default function KomoditasPage() {
       {/* Summary Cards */}
       {selectedCommodity && selectedCommodity.harga > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border px-4 py-3">
-            <p className="text-xs text-gray-500">Harga Terakhir</p>
-            <p className="text-lg font-bold text-gray-900">
+          <div className="bg-card rounded-xl border px-4 py-3">
+            <p className="text-xs text-muted-foreground">Harga Terakhir</p>
+            <p className="text-lg font-bold text-foreground">
               Rp {selectedCommodity.harga.toLocaleString("id-ID")}
             </p>
           </div>
-          <div className="bg-white rounded-xl border px-4 py-3">
-            <p className="text-xs text-gray-500">Harian</p>
+          <div className="bg-card rounded-xl border px-4 py-3">
+            <p className="text-xs text-muted-foreground">Harian</p>
             <p
               className={`text-lg font-bold ${
-                selectedCommodity.harian > 0 ? "text-red-600" : selectedCommodity.harian < 0 ? "text-green-600" : "text-gray-600"
+                selectedCommodity.harian > 0 ? "text-red-600" : selectedCommodity.harian < 0 ? "text-green-600" : "text-muted-foreground"
               }`}
             >
               {selectedCommodity.harian > 0 ? "+" : ""}
               {selectedCommodity.harian}%
             </p>
           </div>
-          <div className="bg-white rounded-xl border px-4 py-3">
-            <p className="text-xs text-gray-500">Mingguan</p>
+          <div className="bg-card rounded-xl border px-4 py-3">
+            <p className="text-xs text-muted-foreground">Mingguan</p>
             <p
               className={`text-lg font-bold ${
-                selectedCommodity.mingguan > 0 ? "text-red-600" : selectedCommodity.mingguan < 0 ? "text-green-600" : "text-gray-600"
+                selectedCommodity.mingguan > 0 ? "text-red-600" : selectedCommodity.mingguan < 0 ? "text-green-600" : "text-muted-foreground"
               }`}
             >
               {selectedCommodity.mingguan > 0 ? "+" : ""}
               {selectedCommodity.mingguan}%
             </p>
           </div>
-          <div className="bg-white rounded-xl border px-4 py-3">
-            <p className="text-xs text-gray-500">Bulanan</p>
+          <div className="bg-card rounded-xl border px-4 py-3">
+            <p className="text-xs text-muted-foreground">Bulanan</p>
             <p
               className={`text-lg font-bold ${
-                selectedCommodity.bulanan > 0 ? "text-red-600" : selectedCommodity.bulanan < 0 ? "text-green-600" : "text-gray-600"
+                selectedCommodity.bulanan > 0 ? "text-red-600" : selectedCommodity.bulanan < 0 ? "text-green-600" : "text-muted-foreground"
               }`}
             >
               {selectedCommodity.bulanan > 0 ? "+" : ""}
@@ -189,29 +189,29 @@ export default function KomoditasPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-card rounded-xl border overflow-hidden">
         <div className="px-5 py-4 border-b">
-          <h3 className="text-sm font-semibold text-gray-900">
+          <h3 className="text-sm font-semibold text-foreground">
             Perubahan Harga Semua Komoditas
           </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <tr className="bg-muted/50">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Komoditas
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Harga
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Harian
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Mingguan
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Bulanan
                 </th>
               </tr>
@@ -219,7 +219,7 @@ export default function KomoditasPage() {
             <tbody className="divide-y">
               {commodities.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     {rankingLoading ? "Memuat data..." : "Belum ada data komoditas tersedia."}
                   </td>
                 </tr>
@@ -227,17 +227,17 @@ export default function KomoditasPage() {
               {commodities.map((c) => (
                 <tr
                   key={c.kode}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                    selected === c.kode ? "bg-blue-50" : ""
+                  className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                    selected === c.kode ? "bg-blue-50 dark:bg-blue-950/30" : ""
                   }`}
                   onClick={() => setSelected(c.kode)}
                 >
                   <td className="px-4 py-3">
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-foreground">
                       {c.nama}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {c.harga > 0 ? `Rp ${c.harga.toLocaleString("id-ID")}` : "-"}
                   </td>
                   <ChangeCell value={c.harian} />

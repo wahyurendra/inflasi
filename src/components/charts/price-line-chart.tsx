@@ -55,12 +55,12 @@ function CustomTooltip({
   if (!active || !payload?.length || !label) return null;
 
   return (
-    <div className="bg-white border rounded-lg shadow-lg px-3 py-2">
-      <p className="text-xs text-gray-500">{formatDate(label)}</p>
+    <div className="rounded-lg border bg-card px-3 py-2 shadow-lg">
+      <p className="text-xs text-muted-foreground">{formatDate(label)}</p>
       {payload.map((p) => {
         if (p.dataKey === "harga" && p.value) {
           return (
-            <p key="harga" className="text-sm font-semibold text-gray-900">
+            <p key="harga" className="text-sm font-semibold text-foreground">
               {formatRupiah(p.value)}
             </p>
           );
@@ -89,7 +89,7 @@ export function PriceLineChart({
   if (!data.length) {
     return (
       <div
-        className="flex items-center justify-center text-gray-400 border rounded-lg bg-gray-50"
+        className="flex items-center justify-center rounded-lg border bg-muted/50 text-muted-foreground"
         style={{ height }}
       >
         Tidak ada data untuk ditampilkan
@@ -201,7 +201,7 @@ export function PriceLineChart({
             type="monotone"
             dataKey="yhatLower"
             stroke="none"
-            fill="#ffffff"
+            fill="hsl(var(--card))"
             fillOpacity={1}
           />
         )}
@@ -213,7 +213,7 @@ export function PriceLineChart({
           stroke={color}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, stroke: color, strokeWidth: 2, fill: "white" }}
+          activeDot={{ r: 4, stroke: color, strokeWidth: 2, fill: "hsl(var(--card))" }}
           connectNulls={false}
         />
 
@@ -226,7 +226,7 @@ export function PriceLineChart({
             strokeWidth={2}
             strokeDasharray="6 3"
             dot={false}
-            activeDot={{ r: 4, stroke: "#f97316", strokeWidth: 2, fill: "white" }}
+            activeDot={{ r: 4, stroke: "#f97316", strokeWidth: 2, fill: "hsl(var(--card))" }}
             connectNulls={false}
           />
         )}

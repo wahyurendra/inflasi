@@ -46,19 +46,6 @@ export const authConfig: NextAuthConfig = {
 
         // Demo login — selalu tersedia
         if (
-          credentials.email === "admin@inflasi.id" &&
-          credentials.password === "admin123"
-        ) {
-          console.log("[AUTH] Demo admin login success");
-          return {
-            id: "demo-admin",
-            name: "Admin Demo",
-            email: "admin@inflasi.id",
-            role: "ADMIN" as const,
-            regionId: null,
-          };
-        }
-        if (
           credentials.email === "demo@inflasi.id" &&
           credentials.password === "demo123"
         ) {

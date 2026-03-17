@@ -25,9 +25,9 @@ function useRegionHeatmap() {
 }
 
 const riskColors = {
-  tinggi: "bg-red-100 text-red-700",
-  sedang: "bg-orange-100 text-orange-700",
-  rendah: "bg-green-100 text-green-700",
+  tinggi: "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-300",
+  sedang: "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300",
+  rendah: "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-300",
 };
 
 export default function WilayahPage() {
@@ -58,24 +58,24 @@ export default function WilayahPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-gray-900">Peta Tekanan Harga</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className="text-lg font-bold text-foreground">Peta Tekanan Harga</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Wilayah dengan tekanan harga pangan tertinggi
         </p>
       </div>
 
       {/* Map */}
-      <div className="bg-white rounded-xl border p-6">
+      <div className="bg-card rounded-xl border p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">
+          <h3 className="text-sm font-semibold text-foreground">
             Heatmap Tekanan Harga Indonesia
           </h3>
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
+          <div className="flex rounded-lg bg-muted p-0.5">
             <button
               className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
                 mapMode === "price_change"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setMapMode("price_change")}
             >
@@ -84,8 +84,8 @@ export default function WilayahPage() {
             <button
               className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
                 mapMode === "risk"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setMapMode("risk")}
             >
@@ -101,13 +101,13 @@ export default function WilayahPage() {
           }
         />
         {selectedInfo && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-foreground">
                   {selectedInfo.namaProvinsi}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   Rata-rata kenaikan: +{selectedInfo.avgPriceChange.toFixed(1)}% | Alert: {selectedInfo.alertCount}
                 </p>
               </div>
@@ -122,29 +122,29 @@ export default function WilayahPage() {
       </div>
 
       {/* Ranking Table */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-card rounded-xl border overflow-hidden">
         <div className="px-5 py-4 border-b">
-          <h3 className="text-sm font-semibold text-gray-900">
+          <h3 className="text-sm font-semibold text-foreground">
             Ranking Provinsi — 10 Teratas
           </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
+              <tr className="bg-muted/50">
+                <th className="w-12 px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   #
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Provinsi
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Rata-rata Kenaikan
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Risiko
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                   Alert
                 </th>
               </tr>
@@ -152,14 +152,14 @@ export default function WilayahPage() {
             <tbody className="divide-y">
               {isLoading && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     Memuat data...
                   </td>
                 </tr>
               )}
               {!isLoading && sorted.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     Belum ada data wilayah tersedia.
                   </td>
                 </tr>
@@ -167,17 +167,17 @@ export default function WilayahPage() {
               {sorted.slice(0, 10).map((r, idx) => (
                 <tr
                   key={r.kodeWilayah}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                    selectedRegion === r.kodeWilayah ? "bg-blue-50" : ""
+                  className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                    selectedRegion === r.kodeWilayah ? "bg-blue-50 dark:bg-blue-950/30" : ""
                   }`}
                   onClick={() =>
                     setSelectedRegion(r.kodeWilayah === selectedRegion ? null : r.kodeWilayah)
                   }
                 >
-                  <td className="px-4 py-3 text-sm text-gray-500 font-medium">
+                  <td className="px-4 py-3 text-sm font-medium text-muted-foreground">
                     {idx + 1}
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">
                     {r.namaProvinsi}
                   </td>
                   <td className="px-4 py-3">
@@ -187,7 +187,7 @@ export default function WilayahPage() {
                           ? "text-red-600"
                           : r.avgPriceChange > 2
                             ? "text-orange-500"
-                            : "text-gray-600"
+                            : "text-muted-foreground"
                       }`}
                     >
                       +{r.avgPriceChange.toFixed(1)}%
@@ -200,7 +200,7 @@ export default function WilayahPage() {
                       {r.riskCategory}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {r.alertCount > 0 ? (
                       <span className="text-orange-600 font-medium">{r.alertCount}</span>
                     ) : (

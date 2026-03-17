@@ -55,7 +55,7 @@ export function IndonesiaChoropleth({
         style={{ minHeight: 220 }}
       >
         {/* Background */}
-        <rect x="-5" y="-5" width="710" height="300" fill="#f0f9ff" rx="8" />
+        <rect x="-5" y="-5" width="710" height="300" fill="hsl(var(--muted))" rx="8" />
 
         {/* Province paths */}
         {Object.entries(PROVINCE_PATHS).map(([kode, { d }]) => {
@@ -83,7 +83,7 @@ export function IndonesiaChoropleth({
               <path
                 d={d}
                 fill={color}
-                stroke={hasAlert ? "#dc2626" : "#ffffff"}
+                stroke={hasAlert ? "#dc2626" : "hsl(var(--background))"}
                 strokeWidth={hasAlert ? 1.5 : 0.8}
                 opacity={
                   hoveredRegion === null || hoveredRegion === kode ? 0.9 : 0.5
@@ -141,34 +141,34 @@ export function IndonesiaChoropleth({
       <div className="flex gap-4 mt-3 justify-center">
         {mode === "risk" ? (
           <>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#22c55e" }} />
               Rendah
             </span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#f97316" }} />
               Sedang
             </span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#dc2626" }} />
               Tinggi
             </span>
           </>
         ) : (
           <>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#22c55e" }} />
               Rendah (&lt;2%)
             </span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#eab308" }} />
               Sedang (2-5%)
             </span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#f97316" }} />
               Tinggi (5-10%)
             </span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-3 w-3 rounded" style={{ backgroundColor: "#dc2626" }} />
               Sangat Tinggi (&gt;10%)
             </span>

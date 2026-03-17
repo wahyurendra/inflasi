@@ -108,17 +108,6 @@ function LoginForm() {
         <button
           type="button"
           onClick={() => {
-            setEmail("admin@inflasi.id");
-            setPassword("admin123");
-          }}
-          className="text-primary hover:underline"
-        >
-          Admin
-        </button>
-        <span> | </span>
-        <button
-          type="button"
-          onClick={() => {
             setEmail("demo@inflasi.id");
             setPassword("demo123");
           }}

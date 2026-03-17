@@ -71,18 +71,29 @@ const COMMODITY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  food_supply: "bg-orange-100 text-orange-700",
-  energy: "bg-yellow-100 text-yellow-700",
-  geopolitics: "bg-red-100 text-red-700",
-  climate: "bg-blue-100 text-blue-700",
-  agriculture: "bg-green-100 text-green-700",
-  indonesia: "bg-purple-100 text-purple-700",
+  food_supply: "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300",
+  energy: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300",
+  geopolitics: "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-300",
+  climate: "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300",
+  agriculture: "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-300",
+  indonesia: "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300",
 };
 
 const SENTIMENT_COLORS: Record<string, string> = {
   negative: "text-red-600",
-  neutral: "text-gray-500",
+  neutral: "text-muted-foreground",
   positive: "text-green-600",
+};
+
+const chartTooltipStyle = {
+  backgroundColor: "hsl(var(--card))",
+  borderColor: "hsl(var(--border))",
+  borderRadius: "0.5rem",
+  color: "hsl(var(--card-foreground))",
+};
+
+const chartLabelStyle = {
+  color: "hsl(var(--muted-foreground))",
 };
 
 export default function GlobalSignalsPage() {
@@ -95,10 +106,10 @@ export default function GlobalSignalsPage() {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3" />
+          <div className="h-8 w-1/3 rounded bg-muted" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded" />
+              <div key={i} className="h-32 rounded bg-muted" />
             ))}
           </div>
         </div>
@@ -145,7 +156,7 @@ export default function GlobalSignalsPage() {
         <Globe className="h-7 w-7 text-blue-600" />
         <div>
           <h1 className="text-2xl font-bold">Global Signals</h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Sinyal pasar global yang mempengaruhi inflasi pangan domestik
           </p>
         </div>
@@ -154,9 +165,9 @@ export default function GlobalSignalsPage() {
       {/* Key Indicators Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* FAO Food Price Index */}
-        <div className="bg-white rounded-lg border p-4">
+        <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Wheat className="h-4 w-4" />
               FAO Food Price Index
             </div>
@@ -165,19 +176,19 @@ export default function GlobalSignalsPage() {
             <span className="text-2xl font-bold">
               {latestFao?.overall?.toFixed(1) || "-"}
             </span>
-            <span className="text-sm text-gray-400 ml-2">
+            <span className="ml-2 text-sm text-muted-foreground">
               {latestFao?.periode?.slice(0, 7)}
             </span>
           </div>
-          <div className="mt-1 text-xs text-gray-500">
+          <div className="mt-1 text-xs text-muted-foreground">
             Cereals: {latestFao?.cereals} | Oil: {latestFao?.vegOil} | Sugar:{" "}
             {latestFao?.sugar}
           </div>
         </div>
 
         {/* USD/IDR */}
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-card rounded-lg border p-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <DollarSign className="h-4 w-4" />
             Kurs USD/IDR
           </div>
@@ -200,14 +211,14 @@ export default function GlobalSignalsPage() {
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="mt-1 text-xs text-muted-foreground">
             {latestKurs?.tanggal}
           </div>
         </div>
 
         {/* Brent Crude */}
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-card rounded-lg border p-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Fuel className="h-4 w-4" />
             Minyak Brent
           </div>
@@ -215,16 +226,16 @@ export default function GlobalSignalsPage() {
             <span className="text-2xl font-bold">
               ${latestEnergy?.price?.toFixed(1) || "-"}
             </span>
-            <span className="text-sm text-gray-400 ml-1">/bbl</span>
+            <span className="ml-1 text-sm text-muted-foreground">/bbl</span>
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="mt-1 text-xs text-muted-foreground">
             {latestEnergy?.tanggal}
           </div>
         </div>
 
         {/* Supply Chain Pressure */}
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-card rounded-lg border p-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <BarChart3 className="h-4 w-4" />
             Supply Chain Pressure
           </div>
@@ -244,7 +255,7 @@ export default function GlobalSignalsPage() {
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="mt-1 text-xs text-muted-foreground">
             GSCPI (Fed NY) — {latestGscpi?.periode?.slice(0, 7)}
           </div>
         </div>
@@ -253,7 +264,7 @@ export default function GlobalSignalsPage() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* FAO Index Trend */}
-        <div className="bg-white rounded-lg border p-4">
+        <div className="bg-card rounded-lg border p-4">
           <h3 className="font-semibold mb-3">
             FAO Food Price Index — 12 Bulan Terakhir
           </h3>
@@ -262,7 +273,7 @@ export default function GlobalSignalsPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="bulan" tick={{ fontSize: 11 }} />
               <YAxis domain={["dataMin - 5", "dataMax + 5"]} tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} />
               <Line
                 type="monotone"
                 dataKey="overall"
@@ -292,7 +303,7 @@ export default function GlobalSignalsPage() {
         </div>
 
         {/* Kurs Trend */}
-        <div className="bg-white rounded-lg border p-4">
+        <div className="bg-card rounded-lg border p-4">
           <h3 className="font-semibold mb-3">Kurs USD/IDR — 30 Hari</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={kursChartData}>
@@ -304,6 +315,8 @@ export default function GlobalSignalsPage() {
                 tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`}
               />
               <Tooltip
+                contentStyle={chartTooltipStyle}
+                labelStyle={chartLabelStyle}
                 formatter={(v) => [
                   `Rp ${Number(v).toLocaleString("id-ID")}`,
                   "Kurs",
@@ -324,12 +337,12 @@ export default function GlobalSignalsPage() {
       {/* Commodity Prices + GSCPI */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Commodity Prices Table */}
-        <div className="lg:col-span-2 bg-white rounded-lg border p-4">
+        <div className="lg:col-span-2 rounded-lg border bg-card p-4">
           <h3 className="font-semibold mb-3">Harga Komoditas Global</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-gray-500">
+                <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-2">Komoditas</th>
                   <th className="pb-2 text-right">Harga</th>
                   <th className="pb-2 text-right">Satuan</th>
@@ -345,10 +358,10 @@ export default function GlobalSignalsPage() {
                     <td className="py-2 text-right font-mono">
                       ${val.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}
                     </td>
-                    <td className="py-2 text-right text-gray-500">
+                    <td className="py-2 text-right text-muted-foreground">
                       {val.unit}
                     </td>
-                    <td className="py-2 text-right text-gray-400">
+                    <td className="py-2 text-right text-muted-foreground">
                       {val.periode.slice(0, 7)}
                     </td>
                   </tr>
@@ -359,7 +372,7 @@ export default function GlobalSignalsPage() {
         </div>
 
         {/* GSCPI Chart */}
-        <div className="bg-white rounded-lg border p-4">
+        <div className="bg-card rounded-lg border p-4">
           <h3 className="font-semibold mb-3">Supply Chain Pressure</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={gscpiChartData}>
@@ -370,7 +383,7 @@ export default function GlobalSignalsPage() {
                 tickFormatter={(v) => v.slice(5)}
               />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} />
               <Bar dataKey="gscpi" name="GSCPI">
                 {gscpiChartData.map((entry, i) => (
                   <Cell
@@ -387,33 +400,33 @@ export default function GlobalSignalsPage() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="mt-2 text-xs text-muted-foreground">
             Fed NY Global Supply Chain Pressure Index. &gt;0.5 = tekanan tinggi
           </p>
         </div>
       </div>
 
       {/* News Intelligence */}
-      <div className="bg-white rounded-lg border p-4">
+      <div className="bg-card rounded-lg border p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Newspaper className="h-5 w-5 text-gray-600" />
+          <Newspaper className="h-5 w-5 text-muted-foreground" />
           <h3 className="font-semibold">News Intelligence</h3>
-          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             GDELT
           </span>
         </div>
         <div className="space-y-3">
           {news.length === 0 ? (
-            <p className="text-sm text-gray-400">Tidak ada berita terbaru.</p>
+            <p className="text-sm text-muted-foreground">Tidak ada berita terbaru.</p>
           ) : (
             news.slice(0, 10).map((n, i) => (
               <div
                 key={i}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
+                className="flex items-start gap-3 rounded-lg p-3 transition hover:bg-muted/50"
               >
                 <div className="flex-shrink-0 mt-0.5">
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[n.kategori] || "bg-gray-100 text-gray-600"}`}
+                    className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[n.kategori] || "bg-muted text-muted-foreground"}`}
                   >
                     {n.kategori}
                   </span>
@@ -433,7 +446,7 @@ export default function GlobalSignalsPage() {
                       n.judul
                     )}
                   </p>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{n.sumber}</span>
                     <span>·</span>
                     <span>{n.tanggal}</span>
@@ -442,7 +455,7 @@ export default function GlobalSignalsPage() {
                         <span>·</span>
                         <span
                           className={
-                            SENTIMENT_COLORS[n.sentimen] || "text-gray-500"
+                            SENTIMENT_COLORS[n.sentimen] || "text-muted-foreground"
                           }
                         >
                           {n.sentimen}

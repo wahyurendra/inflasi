@@ -14,26 +14,38 @@ interface AlertBannerProps {
 }
 
 const severityConfig = {
-  critical: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" },
-  warning: { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500" },
-  info: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
+  critical: {
+    bg: "bg-red-50 dark:bg-red-950/30",
+    text: "text-red-700 dark:text-red-300",
+    dot: "bg-red-500",
+  },
+  warning: {
+    bg: "bg-orange-50 dark:bg-orange-950/30",
+    text: "text-orange-700 dark:text-orange-300",
+    dot: "bg-orange-500",
+  },
+  info: {
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+    text: "text-blue-700 dark:text-blue-300",
+    dot: "bg-blue-500",
+  },
 };
 
 export function AlertBanner({ alerts }: AlertBannerProps) {
   if (!alerts.length) return null;
 
   return (
-    <div className="bg-white rounded-xl border p-5">
+    <div className="bg-card rounded-xl border p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-semibold text-gray-900">
+          <h3 className="text-sm font-semibold text-foreground">
             Alert Aktif ({alerts.length})
           </h3>
         </div>
         <Link
           href="/alerts"
-          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+          className="text-xs font-medium text-primary hover:opacity-80"
         >
           Lihat Semua
         </Link>

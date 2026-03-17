@@ -19,8 +19,8 @@ export function CommodityRanking({
   title = "Komoditas Paling Naik",
 }: CommodityRankingProps) {
   return (
-    <div className="bg-white rounded-xl border p-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="bg-card rounded-xl border p-5">
+      <h3 className="text-sm font-semibold text-foreground mb-4">{title}</h3>
       <div className="space-y-3">
         {data.map((item, idx) => {
           const isUp = item.perubahanMingguan > 0;
@@ -29,14 +29,14 @@ export function CommodityRanking({
           return (
             <div key={item.namaDisplay} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-400 w-5">
+                <span className="text-sm font-medium text-muted-foreground w-5">
                   {idx + 1}.
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     {item.namaDisplay}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Rp {item.hargaTerakhir.toLocaleString("id-ID")}/kg
                   </p>
                 </div>
@@ -47,11 +47,11 @@ export function CommodityRanking({
                 ) : isDown ? (
                   <TrendingDown className="h-3.5 w-3.5 text-green-500" />
                 ) : (
-                  <Minus className="h-3.5 w-3.5 text-gray-400" />
+                  <Minus className="h-3.5 w-3.5 text-muted-foreground" />
                 )}
                 <span
                   className={`text-sm font-semibold ${
-                    isUp ? "text-red-600" : isDown ? "text-green-600" : "text-gray-500"
+                    isUp ? "text-red-500" : isDown ? "text-green-500" : "text-muted-foreground"
                   }`}
                 >
                   {item.perubahanMingguan > 0 ? "+" : ""}

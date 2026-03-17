@@ -27,17 +27,17 @@ const DRIVER_CONFIG: Record<string, { label: string; icon: typeof Cloud; color: 
 const DirectionIcon = ({ direction }: { direction: string }) => {
   if (direction === "naik") return <TrendingUp className="h-3.5 w-3.5 text-red-500" />;
   if (direction === "turun") return <TrendingDown className="h-3.5 w-3.5 text-green-500" />;
-  return <Minus className="h-3.5 w-3.5 text-gray-400" />;
+  return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
 };
 
 export function DriverPanel({ drivers, commodity }: DriverPanelProps) {
   if (!drivers?.length) {
     return (
-      <div className="bg-white rounded-xl border p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">
+      <div className="bg-card rounded-xl border p-5">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Driver Inflasi {commodity ? `— ${commodity}` : ""}
         </h3>
-        <p className="text-sm text-gray-400">Data driver belum tersedia</p>
+        <p className="text-sm text-muted-foreground">Data driver belum tersedia</p>
       </div>
     );
   }
@@ -45,8 +45,8 @@ export function DriverPanel({ drivers, commodity }: DriverPanelProps) {
   const maxPct = Math.max(...drivers.map((d) => d.contribution_pct));
 
   return (
-    <div className="bg-white rounded-xl border p-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <div className="bg-card rounded-xl border p-5">
+      <h3 className="mb-4 text-sm font-semibold text-foreground">
         Driver Inflasi {commodity ? `— ${commodity}` : ""}
       </h3>
 
@@ -91,7 +91,7 @@ export function DriverPanel({ drivers, commodity }: DriverPanelProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-foreground">
                     {config.label}
                   </span>
                   <DirectionIcon direction={d.direction} />
@@ -99,10 +99,10 @@ export function DriverPanel({ drivers, commodity }: DriverPanelProps) {
                     {d.contribution_pct.toFixed(1)}%
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 truncate">{d.detail}</p>
+                <p className="truncate text-xs text-muted-foreground">{d.detail}</p>
               </div>
               <div className="w-20">
-                <div className="h-1.5 bg-gray-100 rounded-full">
+                <div className="h-1.5 rounded-full bg-muted">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{

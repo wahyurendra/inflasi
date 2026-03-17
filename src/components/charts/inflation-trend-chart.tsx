@@ -34,9 +34,9 @@ function CustomTooltip({
 
   const value = payload[0].value;
   return (
-    <div className="bg-white border rounded-lg shadow-lg px-3 py-2">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-sm font-semibold text-gray-900">
+    <div className="rounded-lg border bg-card px-3 py-2 shadow-lg">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold text-foreground">
         {value > 0 ? "+" : ""}
         {value.toFixed(2)}%
       </p>
