@@ -1,0 +1,159 @@
+# ETL + analytics schedules — k8s-native CronJobs replacing the old in-process
+# APScheduler (scheduler.py). Each runs the SAME api-gateway image with a command
+# override (helyx pattern). Schedules are UTC; original WIB times in comments
+# (WIB = UTC+7). concurrencyPolicy Forbid = never overlap a long run.
+# NOTE: keep the image tag in sync with deployment.yaml (CI bumps both).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-etl-global
+  namespace: default
+  labels: { app: inflasi-api, component: etl }
+spec:
+  schedule: "0 23 * * *"            # 06:00 WIB — kurs, energy, fao, commodity, news
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: etl }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: etl
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "run_etl.py", "--pipeline", "global"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "250m", memory: "512Mi" }
+                limits:   { cpu: "2",    memory: "2Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-etl-pihps-am
+  namespace: default
+  labels: { app: inflasi-api, component: etl }
+spec:
+  schedule: "30 3 * * *"           # 10:30 WIB — PIHPS BI (pagi)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: etl }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: etl
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "run_etl.py", "--pipeline", "pihps"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "250m", memory: "512Mi" }
+                limits:   { cpu: "1",    memory: "1Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-etl-pihps-pm
+  namespace: default
+  labels: { app: inflasi-api, component: etl }
+spec:
+  schedule: "30 6 * * *"           # 13:30 WIB — PIHPS BI (siang)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: etl }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: etl
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "run_etl.py", "--pipeline", "pihps"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "250m", memory: "512Mi" }
+                limits:   { cpu: "1",    memory: "1Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-etl-bmkg
+  namespace: default
+  labels: { app: inflasi-api, component: etl }
+spec:
+  schedule: "0 7 * * *"            # 14:00 WIB — BMKG weather
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: etl }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: etl
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "run_etl.py", "--pipeline", "bmkg"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "250m", memory: "512Mi" }
+                limits:   { cpu: "1",    memory: "1Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-analytics
+  namespace: default
+  labels: { app: inflasi-api, component: analytics }
+spec:
+  schedule: "30 10 * * *"          # 17:30 WIB — risk scores, alerts, anomaly, forecast, insights
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: analytics }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: analytics
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "run_analytics.py"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "500m", memory: "1Gi" }
+                limits:   { cpu: "2",    memory: "3Gi" }   # prophet/forecast headroom

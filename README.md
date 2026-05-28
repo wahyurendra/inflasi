@@ -1,70 +1,53 @@
 # INFLASI
 
-Sistem Pemantauan Inflasi Pangan Berbasis AI — Membaca sinyal dini tekanan harga, menjelaskan penyebab awal, dan memprioritaskan wilayah/komoditas yang perlu diintervensi.
+Sistem Pemantauan Inflasi Pangan Berbasis AI — membaca sinyal dini tekanan harga, menjelaskan
+penyebab awal, dan memprioritaskan wilayah/komoditas yang perlu diintervensi.
+
+Monorepo: a Next.js frontend, a consolidated FastAPI backend, an ML gateway, and K3s/Fleet infra.
+
+## Architecture
+
+```
+apps/web          Next.js 14 BFF (Tailwind, Recharts, CopilotKit). Firebase auth (client SDK).
+apps/api-gateway  FastAPI: prices/reports/alerts/intelligence/gamification/users, Alembic,
+                  in-process validation pipeline (Redis Streams), ETL + analytics CronJobs.
+ml/ml-gateway     FastAPI ML service (forecast/anomaly/OCR/trust/surplus-deficit) on 1×A100,
+                  CPU-fallback. Stateless — callers pass the data series.
+infra/k8s         Fleet-style kustomize per service (Traefik, Longhorn, GHCR). No Helm.
+```
+
+- **Auth:** Firebase (Google + Email/Password). Web uses the client SDK; the api-gateway verifies
+  ID tokens via firebase-admin. Same Firebase project will back the Android app.
+- **Data:** PostgreSQL + TimescaleDB, Redis (cache + Streams), MinIO (report photos). No Supabase.
+- **AI:** Claude API (assistant) + the ML gateway (forecasting/anomaly).
 
 ## Tech Stack
+Next.js 14 · FastAPI (Python 3.11/3.12) · PostgreSQL/TimescaleDB · Redis · MinIO · Firebase Auth ·
+PyTorch/Prophet · K3s + Rancher Fleet + Traefik + Longhorn · Prometheus + Grafana.
 
-- **Frontend:** Next.js 14 (TypeScript, Tailwind CSS, Recharts)
-- **Backend API:** Next.js API Routes + Python FastAPI (analytics)
-- **Database:** PostgreSQL (Prisma ORM)
-- **AI:** Claude API + Semantic Query Layer
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- Python 3.11+
-- PostgreSQL database
-
-### Setup
-
+## Local development
 ```bash
-# Install dependencies
-npm install
-
-# Setup environment
-cp .env.example .env.local
-# Edit .env.local with your database URL
-
-# Generate Prisma client
-npx prisma generate
-
-# Run migrations
-npx prisma db push
-
-# Seed dimension tables
-npx prisma db seed
-
-# Start development server
-npm run dev
+docker compose up        # web :3000 -> api :8001 -> postgres / redis / minio
 ```
+Set `apps/web/.env` (`NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_URL`) and `apps/api-gateway/.env`
+(`ANALYTICS_DATABASE_URL`, `REDIS_URL`). See each app's `.env.example`.
 
-### Python Analytics Service
-
+Run a single app:
 ```bash
-cd analytics
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+npm --prefix apps/web run dev
+cd apps/api-gateway && uvicorn app.main:app --reload --port 8001
 ```
 
-## Project Structure
+## Deploy
+Production bring-up (secrets, GitOps order, Firebase, GPU, verification): **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+CI/CD: `.github/workflows/` builds & pushes GHCR images and bumps Fleet image tags.
 
+## Docs
+- [docs/MVP_BLUEPRINT.md](docs/MVP_BLUEPRINT.md) — product spec
+- [INFLASI_ID_Production_Plan_Revised.md](INFLASI_ID_Production_Plan_Revised.md) — production plan
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — deployment runbook
+
+## Repo layout
 ```
-├── src/
-│   ├── app/
-│   │   ├── (dashboard)/     # Dashboard pages (Overview, Komoditas, Wilayah, Alerts, AI)
-│   │   └── api/             # Next.js API routes
-│   ├── components/          # React components
-│   ├── lib/                 # Utilities, DB client, types, constants
-│   └── hooks/               # React Query hooks
-├── analytics/               # Python FastAPI analytics service
-│   └── app/
-│       ├── api/             # Analytics API endpoints
-│       ├── etl/             # Data pipelines (PIHPS BI, BPS, etc.)
-│       └── services/        # Analytics logic (pricing, alerts, risk scoring)
-├── prisma/                  # Database schema and seed
-└── docs/                    # MVP Blueprint and documentation
+apps/{web,api-gateway}/   ml/ml-gateway/   workers/   infra/k8s/{projects,fleet}/   docs/
 ```

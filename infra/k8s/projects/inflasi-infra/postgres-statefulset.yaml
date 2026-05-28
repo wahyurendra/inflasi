@@ -1,0 +1,74 @@
+# PostgreSQL 16 + TimescaleDB — primary store for INFLASI (dims, facts, analytics,
+# users, reports). Single instance (house norm; read-replica STS "later"). The
+# timescaledb image runs timescaledb-tune on first boot; we add a few overrides via
+# `-c` args and force the extension preload. App connects as inflasi-pg:5432.
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-pg
+  namespace: default
+  labels: { app: inflasi-pg }
+spec:
+  selector: { app: inflasi-pg }
+  ports:
+    - { name: postgres, port: 5432, targetPort: 5432 }
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: inflasi-pg
+  namespace: default
+  labels: { app: inflasi-pg }
+spec:
+  serviceName: inflasi-pg
+  replicas: 1
+  selector:
+    matchLabels: { app: inflasi-pg }
+  template:
+    metadata:
+      labels: { app: inflasi-pg }
+    spec:
+      containers:
+        - name: postgres
+          image: timescale/timescaledb:2.17.2-pg16
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-c"
+            - "shared_preload_libraries=timescaledb"
+            - "-c"
+            - "shared_buffers=512MB"
+            - "-c"
+            - "effective_cache_size=1536MB"
+            - "-c"
+            - "max_connections=100"
+          ports:
+            - { containerPort: 5432, name: postgres }
+          envFrom:
+            - secretRef: { name: inflasi-pg-secret }   # POSTGRES_USER/PASSWORD/DB
+          env:
+            # Subdir so the volume's lost+found doesn't collide with initdb.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "500m", memory: "1Gi" }
+            limits:   { cpu: "2",    memory: "2Gi" }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 20Gi

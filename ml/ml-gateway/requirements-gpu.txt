@@ -1,0 +1,7 @@
+# Heavy GPU / OCR deps — installed only in the GPU image (Dockerfile.gpu).
+# Without these the service still runs: TFT and OCR endpoints degrade gracefully.
+torch>=2.2
+pytorch-forecasting>=1.0
+paddlepaddle-gpu>=2.6
+paddleocr>=2.7
+opencv-python-headless>=4.9

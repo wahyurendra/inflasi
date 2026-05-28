@@ -1,0 +1,76 @@
+# Redis 7 — cache, Redis Streams (Kafka replacement, Phase 3), gamification counters.
+# AOF on for durability across restarts. volatile-lru: only TTL'd keys are eviction-
+# eligible. Single instance (HA path = Sentinel later). App connects as inflasi-redis:6379.
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-redis
+  namespace: default
+  labels: { app: inflasi-redis }
+spec:
+  selector: { app: inflasi-redis }
+  ports:
+    - { name: redis, port: 6379, targetPort: 6379 }
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inflasi-redis-config
+  namespace: default
+data:
+  redis.conf: |
+    appendonly yes
+    appendfsync everysec
+    maxmemory 512mb
+    maxmemory-policy volatile-lru
+    save ""
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: inflasi-redis
+  namespace: default
+  labels: { app: inflasi-redis }
+spec:
+  serviceName: inflasi-redis
+  replicas: 1
+  selector:
+    matchLabels: { app: inflasi-redis }
+  template:
+    metadata:
+      labels: { app: inflasi-redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server", "/etc/redis/redis.conf"]
+          ports:
+            - { containerPort: 6379, name: redis }
+          readinessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "1",    memory: "640Mi" }
+          volumeMounts:
+            - { name: conf, mountPath: /etc/redis }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: conf
+          configMap: { name: inflasi-redis-config }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 4Gi

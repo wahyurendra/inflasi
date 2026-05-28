@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Stateful data layer. secret.example.yaml NOT included — real secrets created manually.
+resources:
+  - postgres-statefulset.yaml
+  - redis-statefulset.yaml
+  - minio-statefulset.yaml

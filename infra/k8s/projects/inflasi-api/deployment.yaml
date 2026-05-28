@@ -1,0 +1,61 @@
+# INFLASI api-gateway (FastAPI). Stateless -> 3 replicas, HA + rolling.
+# initContainer runs Alembic migrations BEFORE the server (idempotent:
+# `alembic upgrade head` is a no-op when already at head, safe every roll).
+# ClusterIP only (no Ingress) — the web BFF calls it in-cluster at inflasi-api:8001.
+# CI bumps the `image:` tag on this file only (see k3s-manifest/README).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflasi-api
+  namespace: default
+  labels: { app: inflasi-api }
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: inflasi-api }
+  template:
+    metadata:
+      labels: { app: inflasi-api }
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      initContainers:
+        - name: migrate
+          image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+          imagePullPolicy: Always
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - secretRef: { name: inflasi-secret }
+      containers:
+        - name: api
+          image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+          imagePullPolicy: Always
+          ports:
+            - { containerPort: 8001, name: http }
+          envFrom:
+            - secretRef: { name: inflasi-secret }
+          env:
+            - name: FIREBASE_CREDENTIALS_FILE
+              value: /secrets/firebase-sa.json
+          volumeMounts:
+            - name: firebase-sa
+              mountPath: /secrets
+              readOnly: true
+          readinessProbe:
+            httpGet: { path: /health, port: 8001 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8001 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits:   { cpu: "1500m", memory: "2Gi" }
+      volumes:
+        - name: firebase-sa
+          secret:
+            secretName: inflasi-firebase-sa

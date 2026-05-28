@@ -1,0 +1,2 @@
+# Fleet bundle options for this path. Kustomize is auto-detected via kustomization.yaml.
+defaultNamespace: default

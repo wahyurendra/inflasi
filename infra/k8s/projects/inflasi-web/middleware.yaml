@@ -1,0 +1,10 @@
+# Traefik rate-limit on the public web ingress (per-source request throttling).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: inflasi-ratelimit
+  namespace: default
+spec:
+  rateLimit:
+    average: 100   # req/s averaged per source IP
+    burst: 50

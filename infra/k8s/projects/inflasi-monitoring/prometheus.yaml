@@ -1,0 +1,89 @@
+# Lightweight Prometheus — static scrape of the two FastAPI services' /metrics
+# (no operator/CRDs, no RBAC needed). 15-day retention on a Longhorn PVC.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inflasi-prometheus-config
+  namespace: default
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+    scrape_configs:
+      - job_name: api-gateway
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["inflasi-api:8001"]
+      - job_name: ml-gateway
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["inflasi-ml:8080"]
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inflasi-prometheus-data
+  namespace: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflasi-prometheus
+  namespace: default
+  labels: { app: inflasi-prometheus }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: inflasi-prometheus }
+  template:
+    metadata:
+      labels: { app: inflasi-prometheus }
+    spec:
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.54.1
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=15d"
+          ports:
+            - { containerPort: 9090, name: http }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: 9090 }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits:   { cpu: "1",    memory: "1.5Gi" }
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus }
+            - { name: data, mountPath: /prometheus }
+      volumes:
+        - name: config
+          configMap: { name: inflasi-prometheus-config }
+        - name: data
+          persistentVolumeClaim: { claimName: inflasi-prometheus-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-prometheus
+  namespace: default
+  labels: { app: inflasi-prometheus }
+spec:
+  type: ClusterIP
+  selector: { app: inflasi-prometheus }
+  ports:
+    - { name: http, port: 9090, targetPort: 9090 }

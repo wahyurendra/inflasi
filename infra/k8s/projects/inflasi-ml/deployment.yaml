@@ -1,0 +1,68 @@
+# INFLASI ML Gateway. ONE GPU pod (the only A100 consumer) -> replicas 1, Recreate
+# (a GPU can't be shared across overlapping rolling pods). Needs the NVIDIA device
+# plugin on the node + a `nvidia` RuntimeClass (K3s containerd nvidia runtime) — NOT
+# the gpu-operator helm chart. If no GPU node exists yet, drop the gpu request +
+# runtimeClassName/nodeSelector/tolerations and it runs CPU-only (degraded).
+# CI bumps the `image:` tag on this file only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflasi-ml
+  namespace: default
+  labels: { app: inflasi-ml }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: inflasi-ml }
+  template:
+    metadata:
+      labels: { app: inflasi-ml }
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      runtimeClassName: nvidia
+      nodeSelector:
+        accelerator: nvidia-a100
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: ml-gateway
+          image: ghcr.io/wahyurendra/inflasi-ml:0.0.0
+          imagePullPolicy: Always
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - name: MODEL_CACHE_DIR
+              value: /models
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "12Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - { name: ml-models, mountPath: /models }
+            - { name: dshm, mountPath: /dev/shm }
+      volumes:
+        - name: ml-models
+          persistentVolumeClaim:
+            claimName: ml-models
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

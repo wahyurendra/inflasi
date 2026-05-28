@@ -1,0 +1,24 @@
+# Public entrypoint via Traefik (k3s default ingress). Internal .th host,
+# plain HTTP (TLS terminated upstream) — same convention as helyx-web.
+# Swap `inflasi.th` for the real domain when going public.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inflasi-web
+  namespace: default
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: default-inflasi-ratelimit@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: inflasi.th
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: inflasi-web
+                port:
+                  number: 80
