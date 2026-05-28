@@ -10,6 +10,7 @@ Create Date: 2026-05-27
 """
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 from app.database import Base
@@ -22,8 +23,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    Base.metadata.create_all(bind=op.get_bind())
+    bind = op.get_bind()
+    # User.role / PriceReport.status use create_type=False — we own type creation here.
+    bind.execute(sa.text("""
+        DO $$ BEGIN
+            CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'GOVERNMENT_ANALYST', 'CONTRIBUTOR', 'REPORTER');
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    """))
+    bind.execute(sa.text("""
+        DO $$ BEGIN
+            CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'APPROVED', 'FLAGGED', 'REJECTED');
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    """))
+    Base.metadata.create_all(bind=bind)
 
 
 def downgrade() -> None:
-    Base.metadata.drop_all(bind=op.get_bind())
+    bind = op.get_bind()
+    Base.metadata.drop_all(bind=bind)
+    bind.execute(sa.text('DROP TYPE IF EXISTS "ReportStatus"'))
+    bind.execute(sa.text('DROP TYPE IF EXISTS "UserRole"'))
