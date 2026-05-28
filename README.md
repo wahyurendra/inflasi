@@ -44,7 +44,6 @@ CI/CD: `.github/workflows/` builds & pushes GHCR images and bumps Fleet image ta
 
 ## Docs
 - [docs/MVP_BLUEPRINT.md](docs/MVP_BLUEPRINT.md) — product spec
-- [INFLASI_ID_Production_Plan_Revised.md](INFLASI_ID_Production_Plan_Revised.md) — production plan
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — deployment runbook
 
 ## Repo layout
