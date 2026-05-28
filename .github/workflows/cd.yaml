@@ -23,6 +23,10 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: f
         with:
+          # Compare against main so feature branches detect ALL changes vs main
+          # (default behaviour compares to previous commit on same branch, which
+          # misses everything on the branch except the last commit).
+          base: main
           filters: |
             web: 'apps/web/**'
             api: 'apps/api-gateway/**'

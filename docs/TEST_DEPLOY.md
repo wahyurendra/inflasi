@@ -6,8 +6,9 @@ Tujuan: deploy pertama kali ke K3s untuk validasi arsitektur. Dua jalur tersedia
   smoke-test pertama. Tetap perlu image di GHCR.
 - **Jalur B (penuh GitOps via Fleet)** — proses produksi sesungguhnya. Pakai setelah Jalur A lulus.
 
-Asumsi: `KUBECONFIG=~/Downloads/kubeth-kubeconfig.yaml`, cluster K3s siap dengan Longhorn,
-Traefik, dan (opsional) Fleet/Rancher CD. Jalankan dari root repo.
+Asumsi: K3s + **Rancher** (Continuous Delivery + Storage UI tersedia), Longhorn, Traefik.
+`KUBECONFIG=~/Downloads/kubeth-kubeconfig.yaml` untuk perintah CLI. Setiap step di bawah punya
+**Cara UI (Rancher)** dan **Cara CLI** — pilih yang nyaman.
 
 ---
 
@@ -70,6 +71,23 @@ Verifikasi: `https://github.com/wahyurendra/inflasi/pkgs/container/inflasi-api` 
 
 ## 3 · Buat secrets di cluster (sekali, manual — tidak pernah di-commit)
 
+### Cara UI (Rancher) — recommended
+Rancher Dashboard → cluster → **Storage › Secrets** → Namespace `default`. Untuk masing-masing:
+
+| Secret | Type di Rancher | Isi |
+|---|---|---|
+| `ghcr-secret` | **Registry** (Image Pull Secret) → Registry domain `ghcr.io`, username = GitHub user, password = GHCR PAT (scope `read:packages`) | — |
+| `inflasi-pg-secret` | **Opaque** | Data fields: `POSTGRES_USER=inflasi`, `POSTGRES_PASSWORD=<pw>`, `POSTGRES_DB=inflasi` |
+| `inflasi-minio-secret` | **Opaque** | `MINIO_ROOT_USER=inflasi`, `MINIO_ROOT_PASSWORD=<pw>` |
+| `inflasi-secret` | **Opaque** | `ANALYTICS_DATABASE_URL=postgresql+asyncpg://inflasi:<pw>@inflasi-pg:5432/inflasi`, `REDIS_URL=redis://inflasi-redis:6379/0`, `BPS_API_KEY=`, `EIA_API_KEY=` |
+| `inflasi-firebase-sa` | **Opaque** → klik **Add From File** → key `firebase-sa.json`, file = service-account JSON dari Firebase | (binary file) |
+| `inflasi-web-secret` | **Opaque** | `AUTH_SECRET=unused` |
+| `inflasi-grafana-secret` | **Opaque** | `admin-password=<pw>` |
+
+Ingat: `ANALYTICS_DATABASE_URL` **harus pakai password yang sama** seperti `inflasi-pg-secret.POSTGRES_PASSWORD`.
+
+### Cara CLI — alternatif
+
 ```bash
 # (a) GHCR image pull secret
 kubectl create secret docker-registry ghcr-secret -n default \
@@ -130,7 +148,32 @@ kubectl apply -k infra/k8s/projects/inflasi-monitoring
 
 ---
 
-## 4-alt · Deploy — Jalur B (Fleet GitOps end-to-end)
+## 4-alt · Deploy — Jalur B (Rancher Continuous Delivery)
+
+### Cara UI (Rancher) — recommended
+1. **Continuous Delivery → Git Repos → Create** (workspace: `fleet-default`).
+2. Isi form:
+   - **Name:** `inflasi`
+   - **Repository URL:** `https://github.com/wahyurendra/inflasi.git`
+   - **Branch:** `monorepo-consolidation` (atau `main` setelah merge)
+   - **Authentication** (kalau private repo): pilih **HTTP Basic** → username = GitHub user,
+     password = GitHub PAT (scope `repo`). Rancher otomatis bikin secret di `fleet-default`.
+   - **Paths:**
+     ```
+     infra/k8s/projects/inflasi-infra
+     infra/k8s/projects/inflasi-api
+     infra/k8s/projects/inflasi-web
+     infra/k8s/projects/inflasi-ml
+     infra/k8s/projects/inflasi-monitoring
+     ```
+   - **Target clusters:** local (atau cluster lain) — biarkan default kalau cuma 1 cluster.
+3. **Save** → Fleet pull repo dan bikin bundle per path. Pantau di **Bundles** tab — tunggu
+   semua `Active`. Klik bundle untuk lihat resources yang ter-deploy.
+
+> Branch monitoring otomatis: setiap push (termasuk commit dari CD workflow yang bump image
+> tag), Rancher reconcile bundle dan rolling-update deployment-nya.
+
+### Cara CLI — alternatif
 
 ```bash
 # Fleet harus bisa pull repo. Jika private, buat github-repo-secret dulu:
@@ -217,6 +260,25 @@ kubectl delete -k infra/k8s/projects/inflasi-infra
 # (PVC tidak ikut terhapus by default; hapus manual jika perlu)
 kubectl get pvc -n default | grep -E 'inflasi|ml-models'
 
-# Jalur B
+# Jalur B (Rancher UI: Continuous Delivery → Git Repos → ⋮ → Delete)
 kubectl delete -f infra/k8s/fleet/gitrepo.yaml
 ```
+
+---
+
+## Catatan: Rancher Monitoring (opsional)
+
+Rancher punya app **rancher-monitoring** (kube-prometheus-stack) — bisa install via
+**Cluster Tools → Monitoring → Install**. Kalau kamu enable ini, `inflasi-monitoring` di repo
+ini jadi **redundant** dan bisa dihapus dari paths Fleet GitRepo. Trade-off:
+
+| | rancher-monitoring | `inflasi-monitoring` (di repo) |
+|---|---|---|
+| Resource | ~2 GB RAM (stack lengkap + Alertmanager + node-exporter + dashboards) | ~800 MB |
+| Setup | 1-click install via Rancher | sudah ter-deploy via Fleet |
+| Dashboards | Banyak built-in (cluster, nodes, pods) | Kosong (datasource saja) |
+| Scrape config | Otomatis via ServiceMonitor CRD — perlu tambah annotation/CRD per service | Static config, sudah scrape `inflasi-api:8001` + `inflasi-ml:8080` |
+
+Rekomendasi: kalau cluster cukup resource → pakai **rancher-monitoring**, hapus `inflasi-monitoring`
+dari Fleet paths, lalu tambahkan `ServiceMonitor` ke `inflasi-api`/`inflasi-ml` agar di-scrape
+otomatis. Kalau resource ketat → tetap pakai `inflasi-monitoring` (lebih kecil).
