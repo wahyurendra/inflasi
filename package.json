@@ -2,17 +2,9 @@
   "name": "inflasi-monorepo",
   "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "web": "npm run dev --workspace apps/web"
-  },
-  "devDependencies": {
-    "turbo": "^2.3.3"
-  },
-  "packageManager": "npm@10.0.0"
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "web:lint": "npm --prefix apps/web run lint"
+  }
 }
