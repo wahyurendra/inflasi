@@ -3,13 +3,16 @@
 Extends `dim_calendar` with day_of_week, quarter, month boundaries, and
 Indonesian holiday windows used by the feature store.
 
+Idempotent: uses ADD COLUMN IF NOT EXISTS because tables.py already includes
+these columns, so 0001_baseline's metadata.create_all may have created them
+on a fresh install.
+
 Revision ID: 0003_calendar_features
 Revises: 0002_feature_store
 Create Date: 2026-05-28
 """
 from typing import Sequence, Union
 
-import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0003_calendar_features"
@@ -18,29 +21,29 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-_NEW_COLS = [
-    ("day_of_week", sa.Integer()),
-    ("week_of_year", sa.Integer()),
-    ("quarter", sa.Integer()),
-    ("is_month_start", sa.Boolean()),
-    ("is_month_end", sa.Boolean()),
-    ("ramadan_flag", sa.Boolean()),
-    ("lebaran_minus_21", sa.Boolean()),
-    ("lebaran_minus_14", sa.Boolean()),
-    ("lebaran_minus_7", sa.Boolean()),
-    ("lebaran_plus_7", sa.Boolean()),
-    ("nataru_minus_14", sa.Boolean()),
-    ("idul_adha_window", sa.Boolean()),
-    ("school_holiday_flag", sa.Boolean()),
-    ("harvest_flag", sa.Boolean()),
+_NEW_COLS: list[tuple[str, str]] = [
+    ("day_of_week", "INTEGER"),
+    ("week_of_year", "INTEGER"),
+    ("quarter", "INTEGER"),
+    ("is_month_start", "BOOLEAN"),
+    ("is_month_end", "BOOLEAN"),
+    ("ramadan_flag", "BOOLEAN"),
+    ("lebaran_minus_21", "BOOLEAN"),
+    ("lebaran_minus_14", "BOOLEAN"),
+    ("lebaran_minus_7", "BOOLEAN"),
+    ("lebaran_plus_7", "BOOLEAN"),
+    ("nataru_minus_14", "BOOLEAN"),
+    ("idul_adha_window", "BOOLEAN"),
+    ("school_holiday_flag", "BOOLEAN"),
+    ("harvest_flag", "BOOLEAN"),
 ]
 
 
 def upgrade() -> None:
     for name, col_type in _NEW_COLS:
-        op.add_column("dim_calendar", sa.Column(name, col_type, nullable=True))
+        op.execute(f'ALTER TABLE dim_calendar ADD COLUMN IF NOT EXISTS {name} {col_type}')
 
 
 def downgrade() -> None:
     for name, _ in reversed(_NEW_COLS):
-        op.drop_column("dim_calendar", name)
+        op.execute(f'ALTER TABLE dim_calendar DROP COLUMN IF EXISTS {name}')
