@@ -1,0 +1,13 @@
+# ClusterIP — internal only. Reached by the web BFF as http://inflasi-api:8001
+# and by ETL CronJobs in-cluster. No Ingress (not publicly exposed).
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-api
+  namespace: default
+  labels: { app: inflasi-api }
+spec:
+  type: ClusterIP
+  selector: { app: inflasi-api }
+  ports:
+    - { name: http, port: 8001, targetPort: 8001 }

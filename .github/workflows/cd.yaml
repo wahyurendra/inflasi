@@ -1,0 +1,94 @@
+name: CD
+
+# Build & push changed images to GHCR, then bump the image tag in the matching Fleet
+# manifest and commit it. Rancher Fleet (watching infra/k8s/projects) rolls the change.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # manual trigger from any branch (first test deploy)
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.f.outputs.web }}
+      api: ${{ steps.f.outputs.api }}
+      ml: ${{ steps.f.outputs.ml }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            web: 'apps/web/**'
+            api: 'apps/api-gateway/**'
+            ml: 'ml/ml-gateway/**'
+
+  deploy:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.ml == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build, push & bump tags
+        env:
+          # Public Firebase config baked into the web bundle at build time.
+          FB_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          FB_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          FB_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          FB_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          FB_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          FB_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+        run: |
+          set -euo pipefail
+          SHA=${GITHUB_SHA::12}
+          REG=ghcr.io/wahyurendra
+          bump() { sed -i "s#\(image: ${REG}/$1:\).*#\1${SHA}#g" "$2"; }
+
+          if [ "${{ needs.changes.outputs.web }}" = "true" ]; then
+            docker build -t ${REG}/inflasi-web:${SHA} \
+              --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$FB_API_KEY" \
+              --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="$FB_AUTH_DOMAIN" \
+              --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="$FB_PROJECT_ID" \
+              --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="$FB_STORAGE_BUCKET" \
+              --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="$FB_SENDER_ID" \
+              --build-arg NEXT_PUBLIC_FIREBASE_APP_ID="$FB_APP_ID" \
+              apps/web
+            docker push ${REG}/inflasi-web:${SHA}
+            bump inflasi-web infra/k8s/projects/inflasi-web/deployment.yaml
+          fi
+
+          if [ "${{ needs.changes.outputs.api }}" = "true" ]; then
+            docker build -t ${REG}/inflasi-api:${SHA} apps/api-gateway
+            docker push ${REG}/inflasi-api:${SHA}
+            bump inflasi-api infra/k8s/projects/inflasi-api/deployment.yaml
+            bump inflasi-api infra/k8s/projects/inflasi-api/cronjobs.yaml
+          fi
+
+          if [ "${{ needs.changes.outputs.ml }}" = "true" ]; then
+            docker build -f ml/ml-gateway/Dockerfile.gpu -t ${REG}/inflasi-ml:${SHA} ml/ml-gateway
+            docker push ${REG}/inflasi-ml:${SHA}
+            bump inflasi-ml infra/k8s/projects/inflasi-ml/deployment.yaml
+          fi
+
+      - name: Commit manifest bumps
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add infra/k8s/projects
+          git diff --cached --quiet || git commit -m "ci: bump image tags to ${GITHUB_SHA::12} [skip ci]"
+          git push

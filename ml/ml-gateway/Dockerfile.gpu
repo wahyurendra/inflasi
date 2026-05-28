@@ -1,0 +1,27 @@
+# GPU image for the ML gateway. Runs on the A100 node (runtimeClassName: nvidia).
+# For a CPU-only build, install just requirements.txt on a python:3.11-slim base —
+# TFT/OCR endpoints return "unavailable" but forecast/anomaly/trust/SD still work.
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    MODEL_CACHE_DIR=/models
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 python3-pip libgl1 libglib2.0-0 gcc g++ \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt requirements-gpu.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-gpu.txt
+
+COPY app/ ./app/
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=60s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

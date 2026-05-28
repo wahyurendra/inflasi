@@ -1,0 +1,12 @@
+# Model artifacts / checkpoints cache (TFT, OCR weights). Longhorn, RWO.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-models
+  namespace: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 50Gi

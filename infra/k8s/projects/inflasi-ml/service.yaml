@@ -1,0 +1,12 @@
+# ClusterIP — internal only. api-gateway / analytics reach it at http://inflasi-ml:8080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-ml
+  namespace: default
+  labels: { app: inflasi-ml }
+spec:
+  type: ClusterIP
+  selector: { app: inflasi-ml }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }

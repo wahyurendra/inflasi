@@ -1,0 +1,84 @@
+# Grafana with the Prometheus datasource pre-provisioned. Admin password from the
+# inflasi-grafana-secret (GF_SECURITY_ADMIN_PASSWORD). Dashboards can be imported in-UI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inflasi-grafana-datasource
+  namespace: default
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://inflasi-prometheus:9090
+        isDefault: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inflasi-grafana-data
+  namespace: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflasi-grafana
+  namespace: default
+  labels: { app: inflasi-grafana }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: inflasi-grafana }
+  template:
+    metadata:
+      labels: { app: inflasi-grafana }
+    spec:
+      securityContext:
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.2.0
+          ports:
+            - { containerPort: 3000, name: http }
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: inflasi-grafana-secret, key: admin-password }
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          readinessProbe:
+            httpGet: { path: /api/health, port: 3000 }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - { name: datasource, mountPath: /etc/grafana/provisioning/datasources }
+            - { name: data, mountPath: /var/lib/grafana }
+      volumes:
+        - name: datasource
+          configMap: { name: inflasi-grafana-datasource }
+        - name: data
+          persistentVolumeClaim: { claimName: inflasi-grafana-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-grafana
+  namespace: default
+  labels: { app: inflasi-grafana }
+spec:
+  type: ClusterIP
+  selector: { app: inflasi-grafana }
+  ports:
+    - { name: http, port: 3000, targetPort: 3000 }
