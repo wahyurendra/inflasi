@@ -42,6 +42,10 @@ async def run_analytics(session_factory: async_sessionmaker, target: date) -> No
         await RiskScorer(db).calculate_all_scores(target)
         logger.info("Risk scores calculated")
 
+        from app.services.feature_builder import FeatureBuilder
+        feature_rows = await FeatureBuilder(db).build(target)
+        logger.info("Materialized %s feature_store_daily rows", feature_rows)
+
         from app.services.alert_engine import AlertEngine
         alert_count = await AlertEngine(db).run_daily(target)
         logger.info("Generated %s alerts", alert_count)
