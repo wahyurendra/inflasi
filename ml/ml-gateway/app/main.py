@@ -11,7 +11,10 @@ import logging
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from app.api import anomaly_routes, forecast_routes, ocr_routes, sd_routes, trust_routes
+from app.api import (
+    anomaly_routes, forecast_routes, inflation_routes,
+    ocr_routes, sd_routes, trust_routes,
+)
 from app.core.device import get_device_info
 
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +23,7 @@ logger = logging.getLogger("ml-gateway")
 app = FastAPI(title="INFLASI ML Gateway", version="1.0.0")
 
 app.include_router(forecast_routes.router, prefix="/forecast", tags=["forecast"])
+app.include_router(inflation_routes.router, prefix="/inflation", tags=["forecast"])
 app.include_router(anomaly_routes.router, prefix="/anomaly", tags=["anomaly"])
 app.include_router(ocr_routes.router, prefix="/ocr", tags=["ocr"])
 app.include_router(trust_routes.router, prefix="/trust", tags=["trust"])

@@ -157,3 +157,127 @@ spec:
               resources:
                 requests: { cpu: "500m", memory: "1Gi" }
                 limits:   { cpu: "2",    memory: "3Gi" }   # prophet/forecast headroom
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-batch-forecast
+  namespace: default
+  labels: { app: inflasi-api, component: forecast }
+spec:
+  schedule: "0 13 * * *"           # 20:00 WIB — after analytics CronJob settles
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: forecast }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: batch-forecast
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "-m", "app.tasks.batch_forecast", "--horizon", "7,14,30"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "500m", memory: "1Gi" }
+                limits:   { cpu: "4",    memory: "4Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-evaluate-forecasts
+  namespace: default
+  labels: { app: inflasi-api, component: forecast }
+spec:
+  schedule: "0 16 * * *"           # 23:00 WIB — after batch forecast + ETL settle
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: forecast }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: evaluate-forecasts
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "-m", "app.tasks.evaluate_forecasts", "--window-days", "30"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "250m", memory: "512Mi" }
+                limits:   { cpu: "1",    memory: "2Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-etl-bps
+  namespace: default
+  labels: { app: inflasi-api, component: etl }
+spec:
+  schedule: "0 22 5 * *"          # 05:00 WIB on the 5th of each month (after BPS publishes)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: etl }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: etl
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "run_etl.py", "--pipeline", "bps_inflation"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "250m", memory: "512Mi" }
+                limits:   { cpu: "1",    memory: "1Gi" }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inflasi-build-monthly-features
+  namespace: default
+  labels: { app: inflasi-api, component: feature-store }
+spec:
+  schedule: "0 23 3 * *"           # 06:00 WIB on the 3rd of each month (BPS publishing window)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: inflasi-api, component: feature-store }
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets: [{ name: ghcr-secret }]
+          containers:
+            - name: build-monthly
+              image: ghcr.io/wahyurendra/inflasi-api:0.0.0
+              imagePullPolicy: Always
+              command: ["python", "-m", "app.tasks.build_monthly_features"]
+              envFrom: [{ secretRef: { name: inflasi-secret } }]
+              resources:
+                requests: { cpu: "500m", memory: "1Gi" }
+                limits:   { cpu: "2",    memory: "3Gi" }

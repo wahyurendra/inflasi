@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.services.forecast_monitor import ForecastMonitor
 from app.services.price_calculator import PriceCalculator
 from app.services.risk_scorer import RiskScorer
 from app.services.ranking import RankingService
@@ -65,6 +66,28 @@ async def get_region_ranking(
     """Ranking wilayah berdasarkan tekanan harga."""
     ranking = RankingService(db)
     return await ranking.get_region_ranking(sort, limit)
+
+
+@router.get("/model-performance")
+async def get_model_performance(
+    window_days: int = Query(30, ge=1, le=365),
+    target_type: str = Query("price"),
+    db: AsyncSession = Depends(get_db),
+):
+    """MAE / MAPE / p10-p90 coverage per (model_version, horizon) over a window.
+
+    Reads stored forecasts and joins to `fact_price_daily` for actuals — the
+    same computation as the nightly `evaluate_forecasts` task, exposed as a
+    read API for the dashboard's quality chart.
+    """
+    metrics = await ForecastMonitor(db).metrics_by_model(
+        window_days=window_days, target_type=target_type,
+    )
+    return {
+        "window_days": window_days,
+        "target_type": target_type,
+        "rows": metrics,
+    }
 
 
 @router.post("/calculate")

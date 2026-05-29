@@ -23,6 +23,7 @@ from sqlalchemy import select, text
 from app.config import settings
 from app.core.redis import get_redis
 from app.database import async_session
+from app.etl.pipelines.market_normalizer import MarketNormalizer
 from app.etl.sources import OFFICIAL
 from app.models.tables import FactPriceDaily, Notification, PriceReport
 
@@ -92,6 +93,20 @@ class ValidationPipeline:
             report = (await db.execute(select(PriceReport).where(PriceReport.id == report_id))).scalar()
             if report is None:
                 return
+
+            # Best-effort fuzzy-match `nama_pasar` -> dim_market.id before scoring.
+            # Failures here never block validation; market_id stays NULL.
+            if report.market_id is None:
+                try:
+                    match = await MarketNormalizer(db).resolve(
+                        region_id=report.region_id,
+                        nama_pasar=report.nama_pasar,
+                        auto_create=False,
+                    )
+                    if match is not None:
+                        report.market_id = match.market_id
+                except Exception:
+                    logger.exception("market normalization failed for report %s", report_id)
 
             prices = await self._regional_prices(db, report.commodity_id, report.region_id)
             if not prices:

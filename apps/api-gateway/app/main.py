@@ -8,7 +8,9 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import router as api_router
 from app.core.redis import close_redis
+from app.workers.forecast_batch_worker import ForecastBatchWorker
 from app.workers.refresh_worker import RefreshWorker
+from app.workers.retrain_worker import RetrainWorker
 from app.workers.validation_pipeline import ValidationPipeline
 
 logger = logging.getLogger("inflasi-api")
@@ -84,16 +86,35 @@ async def lifespan(app: FastAPI):
         logger.warning("RefreshWorker failed to start (Redis unavailable?)", exc_info=True)
     app.state.refresh_worker = refresh
 
+    # Batch forecast worker — listens for admin-triggered /batch-run requests
+    # and runs the full ml-gateway forecast loop over every active pair.
+    batch_worker = ForecastBatchWorker()
+    try:
+        await batch_worker.start()
+    except Exception:
+        logger.warning(
+            "ForecastBatchWorker failed to start (Redis unavailable?)", exc_info=True,
+        )
+    app.state.forecast_batch_worker = batch_worker
+
+    # Retrain worker — listens for admin-triggered /retrain requests and
+    # spawns the trainer subprocess inside this pod. Always optional.
+    retrain_worker = RetrainWorker()
+    try:
+        await retrain_worker.start()
+    except Exception:
+        logger.warning(
+            "RetrainWorker failed to start (Redis unavailable?)", exc_info=True,
+        )
+    app.state.retrain_worker = retrain_worker
+
     yield
 
-    try:
-        await refresh.stop()
-    except Exception:
-        pass
-    try:
-        await pipeline.stop()
-    except Exception:
-        pass
+    for w in (retrain_worker, batch_worker, refresh, pipeline):
+        try:
+            await w.stop()
+        except Exception:
+            pass
     await close_redis()
 
 
