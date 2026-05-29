@@ -26,7 +26,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:65f48cf86aef
+              image: ghcr.io/wahyurendra/inflasi-api:e36b4b1a4381
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "global"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -57,7 +57,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:65f48cf86aef
+              image: ghcr.io/wahyurendra/inflasi-api:e36b4b1a4381
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "pihps"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -88,7 +88,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:65f48cf86aef
+              image: ghcr.io/wahyurendra/inflasi-api:e36b4b1a4381
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "pihps"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -119,7 +119,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:65f48cf86aef
+              image: ghcr.io/wahyurendra/inflasi-api:e36b4b1a4381
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "bmkg"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -150,7 +150,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: analytics
-              image: ghcr.io/wahyurendra/inflasi-api:65f48cf86aef
+              image: ghcr.io/wahyurendra/inflasi-api:e36b4b1a4381
               imagePullPolicy: Always
               command: ["python", "run_analytics.py"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
