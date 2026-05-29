@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.api.endpoints import (
     admin_models, internal_models,
     analytics, alerts, insights, forecast, drivers,
-    regions, commodities, prices, inflation, global_signals,
+    regions, commodities, markets, prices, inflation, global_signals,
     intelligence, gamification, health_db,
     auth_api, users, reports, notifications, ai_context,
     recommendations,
@@ -21,6 +21,7 @@ router.include_router(drivers.router, prefix="/drivers", tags=["drivers"])
 # New — data
 router.include_router(regions.router, prefix="/regions", tags=["regions"])
 router.include_router(commodities.router, prefix="/commodities", tags=["commodities"])
+router.include_router(markets.router, prefix="/markets", tags=["markets"])
 router.include_router(prices.router, prefix="/prices", tags=["prices"])
 router.include_router(inflation.router, prefix="/inflation", tags=["inflation"])
 router.include_router(global_signals.router, prefix="/global-signals", tags=["global-signals"])

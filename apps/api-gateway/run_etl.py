@@ -10,15 +10,16 @@ Penggunaan:
   python run_etl.py --verbose                 # log detail
 
 Pipelines:
-  pihps   - Harga pangan harian dari PIHPS BI
-  kurs    - Kurs USD/IDR dari ECB
-  energy  - Harga energi (Brent crude)
-  fao     - FAO Food Price Index
-  commodity - Harga komoditas global (World Bank)
-  news    - Berita intelligence (GDELT)
-  bmkg    - Data cuaca BMKG
-  global  - Semua global (kurs + energy + fao + commodity + news)
-  all     - Semua pipeline
+  pihps         - Harga pangan harian dari PIHPS BI
+  kurs          - Kurs USD/IDR dari ECB
+  energy        - Harga energi (Brent crude)
+  fao           - FAO Food Price Index
+  commodity     - Harga komoditas global (World Bank)
+  news          - Berita intelligence (GDELT)
+  bmkg          - Data cuaca BMKG
+  bps_inflation - Inflasi bulanan BPS (CronJob bulanan, bukan harian)
+  global        - Semua global (kurs + energy + fao + commodity + news)
+  all           - Semua pipeline
 """
 
 import asyncio
@@ -50,7 +51,7 @@ else:
     DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
     print(f"  [WARN] No DATABASE_URL found, using default: {DATABASE_URL}")
 
-PIPELINES = ["pihps", "kurs", "energy", "fao", "commodity", "news", "bmkg"]
+PIPELINES = ["pihps", "kurs", "energy", "fao", "commodity", "news", "bmkg", "bps_inflation"]
 
 
 def _create_engine(url: str, verbose: bool = False):
@@ -144,6 +145,18 @@ async def run_news(db: AsyncSession, days: int, verbose: bool) -> int:
     return count
 
 
+async def run_bps_inflation(db: AsyncSession, verbose: bool) -> int:
+    from app.etl.pipelines.bps_inflation import BPSInflationPipeline
+
+    start_year = int(os.getenv("BPS_BACKFILL_START_YEAR", "2022"))
+    end_year = date.today().year
+    pipeline = BPSInflationPipeline(db=db, start_year=start_year, end_year=end_year)
+    print(f"\n  BPS Inflation Monthly — {start_year}..{end_year}")
+    count = await pipeline.run()
+    print(f"    ✓ {count} records dimuat")
+    return count
+
+
 async def run_bmkg(db: AsyncSession, dates: list[date], verbose: bool) -> int:
     from app.etl.pipelines.bmkg_weather import BMKGWeatherPipeline
 
@@ -167,7 +180,8 @@ async def run_bmkg(db: AsyncSession, dates: list[date], verbose: bool) -> int:
 async def main():
     parser = argparse.ArgumentParser(description="Inflasi ETL Runner")
     parser.add_argument("--pipeline", "-p", type=str, default="all",
-                        choices=["pihps", "kurs", "energy", "fao", "commodity", "news", "bmkg", "global", "all"],
+                        choices=["pihps", "kurs", "energy", "fao", "commodity", "news",
+                                 "bmkg", "bps_inflation", "global", "all"],
                         help="Pipeline to run")
     parser.add_argument("--date", type=str, help="Tanggal target (YYYY-MM-DD)")
     parser.add_argument("--days", type=int, default=7, help="Jumlah hari ke belakang")
@@ -226,6 +240,8 @@ async def main():
                     results["news"] = await run_news(db, min(args.days, 7), args.verbose)
                 elif pipeline_name == "bmkg":
                     results["bmkg"] = await run_bmkg(db, dates[-1:], args.verbose)
+                elif pipeline_name == "bps_inflation":
+                    results["bps_inflation"] = await run_bps_inflation(db, args.verbose)
             except Exception as e:
                 print(f"\n  ✗ {pipeline_name} FAILED: {e}")
                 if args.verbose:

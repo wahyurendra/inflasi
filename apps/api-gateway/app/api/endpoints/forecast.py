@@ -1,9 +1,11 @@
 import csv
 import io
+from datetime import date
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +18,10 @@ from app.schemas.forecast import (
     PriceForecastResponse,
 )
 from app.services.forecast_engine import MODEL_VERSION, ForecastEngine
-from app.services.prediction_service import PredictionService
+from app.services.prediction_service import (
+    DEFAULT_INFLATION_HORIZONS,
+    PredictionService,
+)
 
 router = APIRouter()
 
@@ -127,6 +132,78 @@ async def forecast_price_v2(
                 yhat=p.yhat,
                 yhat_lower=p.yhat_lower,
                 yhat_upper=p.yhat_upper,
+                p10=p.p10, p50=p.p50, p90=p.p90,
+                risk_level=p.risk_level,
+                confidence_score=p.confidence_score,
+                top_drivers=[DriverImpact(**d) for d in p.top_drivers],
+                model_contribution=p.model_contribution,
+                components=[ComponentPrediction(**c) for c in p.components],
+            )
+            for p in points
+        ],
+    )
+
+
+class InflationForecastRequest(BaseModel):
+    region_id: int = Field(..., description="dim_region.id (use national id for headline inflation)")
+    horizons: list[int] | None = Field(None, description="Months ahead; defaults to 1,3,6")
+
+
+class InflationForecastPointSchema(BaseModel):
+    target_date: date
+    horizon_months: int
+    yhat: float
+    p10: float
+    p50: float
+    p90: float
+    risk_level: str
+    confidence_score: float
+    top_drivers: list[DriverImpact] = []
+    model_contribution: dict[str, float] = {}
+    components: list[ComponentPrediction] = []
+
+
+class InflationForecastResponse(BaseModel):
+    region_id: int
+    horizons: list[int]
+    model_version: str
+    points: list[InflationForecastPointSchema]
+
+
+@router.post("/inflation", response_model=InflationForecastResponse)
+async def forecast_inflation(
+    body: InflationForecastRequest,
+    db: AsyncSession = Depends(get_db),
+) -> InflationForecastResponse:
+    """Monthly headline-inflation forecast (MoM) for M+1, M+3, M+6.
+
+    Persists each horizon to `analytics_forecast` with `target_type='inflation'`
+    and `commodity_id=0` (inflation is region-scoped, not commodity-scoped).
+    """
+    horizons = body.horizons or list(DEFAULT_INFLATION_HORIZONS)
+    service = PredictionService(db)
+    points = await service.predict_inflation(
+        region_id=body.region_id, horizons=horizons,
+    )
+    await db.commit()
+    if not points:
+        raise HTTPException(
+            status_code=404,
+            detail="region not found, or insufficient monthly feature history",
+        )
+    version = (
+        points[0].components[0].get("model_version") if points[0].components
+        else "unknown"
+    )
+    return InflationForecastResponse(
+        region_id=body.region_id,
+        horizons=[p.horizon_months for p in points],
+        model_version=version or "unknown",
+        points=[
+            InflationForecastPointSchema(
+                target_date=p.target_date,
+                horizon_months=p.horizon_months,
+                yhat=p.yhat,
                 p10=p.p10, p50=p.p50, p90=p.p90,
                 risk_level=p.risk_level,
                 confidence_score=p.confidence_score,

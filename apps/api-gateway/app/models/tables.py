@@ -44,6 +44,28 @@ class DimCommodity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class DimMarket(Base):
+    __tablename__ = "dim_market"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    region_id: Mapped[int] = mapped_column(Integer, ForeignKey("dim_region.id"))
+    kode_pasar: Mapped[str | None] = mapped_column(String(50))
+    nama_pasar: Mapped[str] = mapped_column(String(200))
+    tipe_pasar: Mapped[str | None] = mapped_column(String(50))
+    alamat: Mapped[str | None] = mapped_column(Text)
+    latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
+    longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    region: Mapped["DimRegion"] = relationship(lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("region_id", "nama_pasar", name="uq_dim_market_region_nama"),
+    )
+
+
 class DimCalendar(Base):
     __tablename__ = "dim_calendar"
 
@@ -113,6 +135,9 @@ class FactPriceDaily(Base):
     perubahan_mingguan: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))
     perubahan_bulanan: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))
     sumber: Mapped[str] = mapped_column(String(50), default="PIHPS_BI")
+    # NULL for official sources; populated for CROWD rows once the normalizer
+    # has mapped `price_reports.nama_pasar` to a `dim_market` row.
+    market_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("dim_market.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     region: Mapped["DimRegion"] = relationship(lazy="selectin")
@@ -413,6 +438,10 @@ class PriceReport(Base):
     kota: Mapped[str | None] = mapped_column(String(100))
     kecamatan: Mapped[str | None] = mapped_column(String(100))
     tanggal: Mapped[date] = mapped_column(Date)
+    # Best-effort link into `dim_market`, set by `MarketNormalizer` after the
+    # report lands. NULL when no fuzzy match clears the threshold — the raw
+    # `nama_pasar` string above remains the source of truth in that case.
+    market_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("dim_market.id"))
     catatan: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(
         postgresql.ENUM("PENDING", "APPROVED", "FLAGGED", "REJECTED", name="ReportStatus", create_type=False),

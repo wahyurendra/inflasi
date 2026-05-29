@@ -34,9 +34,12 @@ from app.services.model_registry import ModelRegistryService
 logger = logging.getLogger(__name__)
 
 DEFAULT_HORIZONS = (7, 14, 30)
+DEFAULT_INFLATION_HORIZONS = (1, 3, 6)
 ENSEMBLE_WEIGHTS = {"arima": 0.3, "prophet": 0.3, "tft": 0.4}
 _MIN_ROWS = 30
 _HISTORY_DAYS = 90
+_MONTHLY_MIN_ROWS = 12
+_MONTHLY_HISTORY_MONTHS = 36
 
 
 @dataclass
@@ -46,6 +49,21 @@ class ForecastPoint:
     yhat: float
     yhat_lower: float
     yhat_upper: float
+    p10: float
+    p50: float
+    p90: float
+    confidence_score: float
+    risk_level: str
+    top_drivers: list[dict[str, Any]] = field(default_factory=list)
+    model_contribution: dict[str, float] = field(default_factory=dict)
+    components: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
+class InflationForecastPoint:
+    target_date: date  # first day of the target month
+    horizon_months: int
+    yhat: float        # forecasted monthly inflation (% mom)
     p10: float
     p50: float
     p90: float
@@ -275,6 +293,136 @@ class PredictionService:
                     forecast_id=row.id, components=pt.components,
                 )
         return all_points
+
+    async def predict_inflation(
+        self,
+        *,
+        region_id: int,
+        horizons: list[int] | None = None,
+        persist: bool = True,
+    ) -> list[InflationForecastPoint]:
+        """Monthly inflation forecast for a region across the requested horizons.
+
+        Reads the recent window of `feature_store_monthly`, calls the ml-gateway's
+        `/inflation/predict`, and persists each horizon's point + p10/p50/p90 to
+        `analytics_forecast` with `target_type='inflation'` and a synthetic
+        `commodity_id=0` (inflation is region-scoped, not commodity-scoped).
+        """
+        horizons = sorted(set(int(h) for h in (horizons or DEFAULT_INFLATION_HORIZONS)))
+        rows = await self._load_monthly_features(region_id)
+        if len(rows) < _MONTHLY_MIN_ROWS:
+            logger.info(
+                "inflation forecast: insufficient monthly features (%s) for region=%s",
+                len(rows), region_id,
+            )
+            return []
+
+        ml_resp = await self._call_ml_inflation(rows, horizons)
+        if not ml_resp or "horizons" not in ml_resp:
+            return []
+
+        last_period = _to_date(rows[-1]["period"])
+        last_actual = _safe_float(rows[-1].get("inflasi_mtm"))
+        recent_std = _rolling_std(
+            [r.get("inflasi_mtm") for r in rows[-12:]],
+        )
+
+        version = await self.registry.version_label(
+            model_type="ensemble", target_type="inflation", horizon=None,
+        )
+        ml_components = ml_resp.get("components") or {}
+        ml_quantiles = ml_resp.get("quantiles") or {}
+        ml_weights = ml_resp.get("weights") or {}
+        models_used = ml_resp.get("models_used") or {}
+        forecast_issue = date.today()
+
+        points: list[InflationForecastPoint] = []
+        for h in horizons:
+            point_val = ml_resp["horizons"].get(str(h))
+            if point_val is None:
+                continue
+            yhat = float(point_val)
+            target_d = _shift_months(last_period, h)
+            quantiles = ml_quantiles.get(str(h)) or {}
+            p10 = _opt_float(quantiles.get("p10"), default=yhat - 1.2816 * recent_std)
+            p50 = _opt_float(quantiles.get("p50"), default=yhat)
+            p90 = _opt_float(quantiles.get("p90"), default=yhat + 1.2816 * recent_std)
+            contribution = _contribution_from_weights(ml_weights) \
+                or _model_contribution(models_used)
+            components = _components_from_inflation_ml(
+                ml_components.get(str(h)) or {}, contribution, version,
+            )
+
+            pt = InflationForecastPoint(
+                target_date=target_d,
+                horizon_months=h,
+                yhat=round(yhat, 4),
+                p10=round(p10, 4),
+                p50=round(p50, 4),
+                p90=round(p90, 4),
+                confidence_score=_confidence(recent_std, last_actual, h * 30),
+                risk_level=_inflation_risk_level(yhat),
+                top_drivers=_inflation_drivers(rows),
+                model_contribution=contribution,
+                components=components,
+            )
+            points.append(pt)
+
+        if persist:
+            for pt in points:
+                row = await self.repo.upsert(
+                    commodity_id=0,
+                    region_id=region_id,
+                    target_date=pt.target_date,
+                    horizon=pt.horizon_months,
+                    yhat=pt.yhat,
+                    yhat_lower=pt.p10,
+                    yhat_upper=pt.p90,
+                    model_version=version,
+                    forecast_date=forecast_issue,
+                    target_type="inflation",
+                    p10=pt.p10, p50=pt.p50, p90=pt.p90,
+                    confidence_score=pt.confidence_score,
+                    risk_level=pt.risk_level,
+                    top_drivers=pt.top_drivers,
+                    model_contribution=pt.model_contribution,
+                    prediction_interval={"lower": pt.p10, "upper": pt.p90},
+                )
+                await self.repo.replace_components(
+                    forecast_id=row.id, components=pt.components,
+                )
+        return points
+
+    async def _load_monthly_features(self, region_id: int) -> list[dict]:
+        rows = (await self.db.execute(
+            text("""
+                SELECT *
+                FROM feature_store_monthly
+                WHERE region_id = :region_id
+                ORDER BY period
+                LIMIT :limit
+            """),
+            {"region_id": region_id, "limit": _MONTHLY_HISTORY_MONTHS},
+        )).mappings().all()
+        return [dict(r) for r in rows]
+
+    async def _call_ml_inflation(
+        self, rows: list[dict], horizons: list[int],
+    ) -> dict | None:
+        payload = {
+            "features": [_serialize_row(r) for r in rows],
+            "horizons": horizons,
+            "model": "ensemble",
+        }
+        url = f"{settings.ml_gateway_url.rstrip('/')}/inflation/predict"
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
+                return resp.json()
+        except Exception:
+            logger.exception("ml-gateway /inflation/predict failed")
+            return None
 
     async def forecast_all(self, horizon: int) -> int:
         """Run prediction for every commodity-region pair seen in the last week."""
@@ -590,3 +738,85 @@ def _to_date(value: Any) -> date:
     if isinstance(value, str):
         return date.fromisoformat(value[:10])
     raise TypeError(f"cannot coerce {value!r} to date")
+
+
+def _shift_months(d: date, months: int) -> date:
+    """Add `months` to the first day of `d`'s month."""
+    month_index = d.year * 12 + (d.month - 1) + months
+    year, month0 = divmod(month_index, 12)
+    return date(year, month0 + 1, 1)
+
+
+def _safe_float(v: Any) -> float | None:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _opt_float(v: Any, *, default: float) -> float:
+    f = _safe_float(v)
+    return f if f is not None else default
+
+
+def _inflation_risk_level(yhat: float) -> str:
+    """Coarse risk bucket on monthly inflation (% mom)."""
+    if yhat >= 1.0:
+        return "high"
+    if yhat >= 0.5:
+        return "medium"
+    if yhat <= -0.5:
+        return "high"
+    return "low"
+
+
+def _inflation_drivers(rows: list[dict]) -> list[dict[str, Any]]:
+    """Surface a handful of populated monthly feature columns."""
+    if not rows:
+        return []
+    last = rows[-1]
+    candidates = (
+        "food_price_change_mom", "kurs_change_mom", "bbm_change_mom",
+        "rainfall_anomaly", "ramadan_flag", "lebaran_flag", "harvest_flag",
+    )
+    drivers: list[dict[str, Any]] = []
+    for col in candidates:
+        v = last.get(col)
+        if v is None:
+            continue
+        try:
+            drivers.append({"feature": col, "impact": round(float(v), 4)})
+        except (TypeError, ValueError):
+            continue
+        if len(drivers) >= 4:
+            break
+    return drivers
+
+
+def _components_from_inflation_ml(
+    per_model: dict[str, float],
+    contribution: dict[str, float],
+    version: str,
+) -> list[dict[str, Any]]:
+    if not per_model:
+        return []
+    out: list[dict[str, Any]] = []
+    for name, pred in per_model.items():
+        try:
+            p = float(pred)
+        except (TypeError, ValueError):
+            continue
+        out.append({
+            "model_name": name,
+            "model_type": name,
+            "model_version": version,
+            "prediction": round(p, 6),
+            "p10": None,
+            "p50": round(p, 6),
+            "p90": None,
+            "model_weight": contribution.get(name),
+            "model_confidence": None,
+        })
+    return out
