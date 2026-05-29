@@ -8,7 +8,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.schemas.forecast import (
+    ComponentPrediction,
+    DriverImpact,
+    ForecastPointSchema,
+    PriceForecastRequest,
+    PriceForecastResponse,
+)
 from app.services.forecast_engine import MODEL_VERSION, ForecastEngine
+from app.services.prediction_service import PredictionService
 
 router = APIRouter()
 
@@ -77,6 +85,58 @@ async def run_forecast(
         return {"status": "ok", "forecasted": 1, "points": len(result)}
     count = await engine.forecast_all(horizon)
     return {"status": "ok", "forecasted": count}
+
+
+# ── v2: quantile forecast (POST /forecast/price) ─────────────
+
+@router.post("/price", response_model=PriceForecastResponse)
+async def forecast_price_v2(
+    body: PriceForecastRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PriceForecastResponse:
+    """Quantile price forecast (p10/p50/p90) with risk + driver explanation.
+
+    Persists to `analytics_forecast` + `forecast_model_components`. Reads the
+    active model version from `model_registry` when registered; otherwise stamps
+    a deterministic placeholder. Matches the spec in
+    docs/INFLASI_ID_Backend_Database_Plan_Updated.md §11.1.
+    """
+    service = PredictionService(db)
+    points = await service.forecast_pair(
+        commodity_id=body.commodity_id,
+        region_id=body.region_id,
+        horizon=body.horizon,
+    )
+    await db.commit()
+
+    if not points:
+        raise HTTPException(
+            status_code=404,
+            detail="commodity/region not found or no recent data to forecast",
+        )
+
+    version = points[0].components[0].get("model_version") if points[0].components else "unknown"
+    return PriceForecastResponse(
+        commodity_id=body.commodity_id,
+        region_id=body.region_id,
+        horizon=body.horizon,
+        model_version=version or "unknown",
+        points=[
+            ForecastPointSchema(
+                target_date=p.target_date,
+                yhat=p.yhat,
+                yhat_lower=p.yhat_lower,
+                yhat_upper=p.yhat_upper,
+                p10=p.p10, p50=p.p50, p90=p.p90,
+                risk_level=p.risk_level,
+                confidence_score=p.confidence_score,
+                top_drivers=[DriverImpact(**d) for d in p.top_drivers],
+                model_contribution=p.model_contribution,
+                components=[ComponentPrediction(**c) for c in p.components],
+            )
+            for p in points
+        ],
+    )
 
 
 @router.get("/feature-row")

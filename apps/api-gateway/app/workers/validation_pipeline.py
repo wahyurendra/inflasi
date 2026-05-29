@@ -17,11 +17,13 @@ from decimal import Decimal
 
 import cuid2
 import httpx
-from sqlalchemy import select
+from redis.exceptions import TimeoutError as RedisTimeoutError
+from sqlalchemy import select, text
 
 from app.config import settings
 from app.core.redis import get_redis
 from app.database import async_session
+from app.etl.sources import OFFICIAL
 from app.models.tables import FactPriceDaily, Notification, PriceReport
 
 logger = logging.getLogger("validation_pipeline")
@@ -76,6 +78,9 @@ class ValidationPipeline:
                             await redis.xack(STREAM_REPORTS, GROUP, msg_id)
             except asyncio.CancelledError:
                 break
+            except RedisTimeoutError:
+                # Idle stream — no messages within block window. Normal; keep polling.
+                continue
             except Exception:
                 logger.exception("consume loop error; retrying")
                 await asyncio.sleep(5)
@@ -114,13 +119,81 @@ class ValidationPipeline:
             report.confidence_score = Decimal(str(confidence))
             report.status = status
             db.add(self._notification(report, status, deviation))
+
+            fact_written = False
+            if status == "APPROVED":
+                # Flush so the median SELECT inside _upsert_crowd_fact sees this
+                # report's freshly-APPROVED status. Still inside the transaction —
+                # we either commit both the status flip and the fact upsert below,
+                # or roll back together.
+                await db.flush()
+                try:
+                    fact_written = await self._upsert_crowd_fact(db, report)
+                except Exception:
+                    # Status flip + notification still commit; reviewer can resolve later.
+                    logger.exception("crowd fact upsert failed for report %s", report_id)
+
+            commodity_id = report.commodity_id
+            region_id = report.region_id
+            tanggal = report.tanggal
             await db.commit()
 
         await get_redis().xadd(
             STREAM_DONE,
-            {"report_id": report_id, "status": status, "confidence": str(confidence)},
+            {
+                "report_id": report_id,
+                "status": status,
+                "confidence": str(confidence),
+                "commodity_id": str(commodity_id),
+                "region_id": str(region_id),
+                "tanggal": tanggal.isoformat(),
+                "fact_written": "1" if fact_written else "0",
+            },
         )
-        logger.info("validated report %s -> %s (confidence %.1f)", report_id, status, confidence)
+        logger.info(
+            "validated report %s -> %s (confidence %.1f, fact_written=%s)",
+            report_id, status, confidence, fact_written,
+        )
+
+    @staticmethod
+    async def _upsert_crowd_fact(db, report: PriceReport) -> bool:
+        """Upsert crowd-median into fact_price_daily, refusing to clobber official rows.
+
+        Single statement: re-aggregates the median across ALL currently-APPROVED reports
+        for (tanggal, region_id, commodity_id), then ON CONFLICT DO UPDATE only when the
+        existing row's sumber is NOT in OFFICIAL. Returns True iff a row was written.
+
+        Concurrency-safe: the percentile aggregate runs inside the same statement that
+        takes the row-level conflict lock, so two simultaneous validators of the same
+        pair both compute fresh medians and the later writer wins with the correct value.
+        """
+        official_list = sorted(OFFICIAL)
+        result = await db.execute(
+            text(
+                """
+                INSERT INTO fact_price_daily (tanggal, region_id, commodity_id, harga, sumber)
+                SELECT :tanggal, :region_id, :commodity_id,
+                       percentile_cont(0.5) WITHIN GROUP (ORDER BY harga) AS median_harga,
+                       'CROWD'
+                FROM price_reports
+                WHERE status = 'APPROVED'
+                  AND tanggal = :tanggal
+                  AND region_id = :region_id
+                  AND commodity_id = :commodity_id
+                ON CONFLICT (tanggal, region_id, commodity_id)
+                DO UPDATE SET harga = EXCLUDED.harga, sumber = EXCLUDED.sumber
+                WHERE fact_price_daily.sumber <> ALL(:official)
+                RETURNING id
+                """
+            ),
+            {
+                "tanggal": report.tanggal,
+                "region_id": report.region_id,
+                "commodity_id": report.commodity_id,
+                "official": official_list,
+            },
+        )
+        return result.first() is not None
 
     @staticmethod
     async def _regional_prices(db, commodity_id: int, region_id: int, days: int = 30) -> "list[float]":
