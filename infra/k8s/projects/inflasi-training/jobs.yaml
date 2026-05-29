@@ -1,0 +1,205 @@
+# Training Jobs — manual-trigger (kubectl create job --from=cronjob doesn't work
+# since these are Jobs, not CronJobs; use `kubectl apply -f` then delete after).
+#
+# Order: export → lightgbm → prophet → sarimax → tft (GPU node only) → ensemble.
+# Each Job uploads to MinIO + POSTs to /api/v1/admin/models. Promotion to
+# is_active is a separate operator step (POST /admin/models/{id}/promote).
+#
+# CI bumps the image tag on this file when ml/training/** changes.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inflasi-train-export
+  namespace: default
+  labels: { app: inflasi-training, component: export }
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: inflasi-training, component: export }
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets: [{ name: ghcr-secret }]
+      containers:
+        - name: trainer
+          image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+          imagePullPolicy: Always
+          args: ["ml.training.export_dataset"]
+          envFrom:
+            - secretRef: { name: inflasi-minio-secret }   # MINIO_ROOT_USER/PASSWORD
+            - secretRef: { name: inflasi-training-secret } # MINIO_ACCESS_KEY/SECRET_KEY/ADMIN_FIREBASE_TOKEN
+          env:
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
+            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: MODEL_VERSION, value: "v1" }
+          resources:
+            requests: { cpu: "500m", memory: "2Gi" }
+            limits:   { cpu: "4",    memory: "8Gi" }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inflasi-train-lightgbm-h7
+  namespace: default
+  labels: { app: inflasi-training, component: lightgbm }
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: inflasi-training, component: lightgbm }
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets: [{ name: ghcr-secret }]
+      containers:
+        - name: trainer
+          image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+          imagePullPolicy: Always
+          args: ["ml.training.train_lightgbm", "--horizon", "7"]
+          envFrom:
+            - secretRef: { name: inflasi-training-secret }
+          env:
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
+            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: MODEL_VERSION, value: "v1" }
+          resources:
+            requests: { cpu: "1",  memory: "4Gi" }
+            limits:   { cpu: "8",  memory: "16Gi" }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inflasi-train-prophet
+  namespace: default
+  labels: { app: inflasi-training, component: prophet }
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: inflasi-training, component: prophet }
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets: [{ name: ghcr-secret }]
+      containers:
+        - name: trainer
+          image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+          imagePullPolicy: Always
+          args: ["ml.training.train_prophet", "--horizon", "7", "--max-series", "30"]
+          envFrom:
+            - secretRef: { name: inflasi-training-secret }
+          env:
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
+            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: MODEL_VERSION, value: "v1" }
+          resources:
+            requests: { cpu: "1",  memory: "4Gi" }
+            limits:   { cpu: "4",  memory: "8Gi" }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inflasi-train-sarimax
+  namespace: default
+  labels: { app: inflasi-training, component: sarimax }
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: inflasi-training, component: sarimax }
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets: [{ name: ghcr-secret }]
+      containers:
+        - name: trainer
+          image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+          imagePullPolicy: Always
+          args: ["ml.training.train_sarimax", "--horizon", "7", "--max-series", "30"]
+          envFrom:
+            - secretRef: { name: inflasi-training-secret }
+          env:
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
+            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: MODEL_VERSION, value: "v1" }
+          resources:
+            requests: { cpu: "1",  memory: "4Gi" }
+            limits:   { cpu: "4",  memory: "8Gi" }
+---
+# TFT — only schedules on a GPU node. Drop nodeSelector/runtimeClassName/tolerations
+# and the gpu request when no GPU is available (Job will then exit early on
+# torch import failure inside the trainer).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inflasi-train-tft-h7
+  namespace: default
+  labels: { app: inflasi-training, component: tft }
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: inflasi-training, component: tft }
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets: [{ name: ghcr-secret }]
+      runtimeClassName: nvidia
+      nodeSelector:
+        accelerator: nvidia-a100
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: trainer
+          image: ghcr.io/wahyurendra/inflasi-training:0.0.0-gpu
+          imagePullPolicy: Always
+          args: ["ml.training.train_tft", "--horizon", "7"]
+          envFrom:
+            - secretRef: { name: inflasi-training-secret }
+          env:
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
+            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: MODEL_VERSION, value: "v1" }
+          resources:
+            requests: { cpu: "2", memory: "8Gi", "nvidia.com/gpu": "1" }
+            limits:   { cpu: "8", memory: "24Gi", "nvidia.com/gpu": "1" }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inflasi-train-ensemble
+  namespace: default
+  labels: { app: inflasi-training, component: ensemble }
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: inflasi-training, component: ensemble }
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets: [{ name: ghcr-secret }]
+      containers:
+        - name: trainer
+          image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+          imagePullPolicy: Always
+          args: ["ml.training.train_ensemble", "--horizon", "7"]
+          envFrom:
+            - secretRef: { name: inflasi-training-secret }
+          env:
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
+            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: MODEL_VERSION, value: "v1" }
+          resources:
+            requests: { cpu: "1", memory: "2Gi" }
+            limits:   { cpu: "4", memory: "8Gi" }

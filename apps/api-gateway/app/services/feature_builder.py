@@ -19,6 +19,8 @@ import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.feature_encoder import CODE_COLUMNS, encode_codes
+
 logger = logging.getLogger(__name__)
 
 _LOOKBACK_DAYS = 60   # extra history fetched so lags/rolling are populated
@@ -31,32 +33,70 @@ class FeatureBuilder:
 
     # ── Public API ────────────────────────────────────────────
 
-    async def build(self, target_date: date, lookback_days: int = _LOOKBACK_DAYS) -> int:
-        """Materialize features for [target_date - lookback, target_date]."""
-        start = target_date - timedelta(days=lookback_days)
-        return await self._materialize(start, target_date)
+    async def build(
+        self,
+        target_date: date,
+        lookback_days: int = _LOOKBACK_DAYS,
+        *,
+        commodity_kodes: list[str] | None = None,
+        region_kodes: list[str] | None = None,
+    ) -> int:
+        """Materialize features for [target_date - lookback, target_date].
 
-    async def backfill(self, start: date, end: date) -> int:
+        When ``commodity_kodes`` / ``region_kodes`` are provided, the build is
+        scoped to those pairs only (used by the refresh worker for incremental
+        per-pair refresh after a crowd report is APPROVED). The daily CronJob
+        leaves both ``None`` to materialize everything.
+        """
+        start = target_date - timedelta(days=lookback_days)
+        return await self._materialize(
+            start, target_date,
+            commodity_kodes=commodity_kodes, region_kodes=region_kodes,
+        )
+
+    async def backfill(
+        self,
+        start: date,
+        end: date,
+        *,
+        commodity_kodes: list[str] | None = None,
+        region_kodes: list[str] | None = None,
+    ) -> int:
         """Bulk materialize [start, end] (inclusive)."""
         if end < start:
             raise ValueError("end must be >= start")
-        return await self._materialize(start, end)
+        return await self._materialize(
+            start, end,
+            commodity_kodes=commodity_kodes, region_kodes=region_kodes,
+        )
 
     # ── Pipeline ──────────────────────────────────────────────
 
-    async def _materialize(self, start: date, end: date) -> int:
+    async def _materialize(
+        self,
+        start: date,
+        end: date,
+        *,
+        commodity_kodes: list[str] | None = None,
+        region_kodes: list[str] | None = None,
+    ) -> int:
         # Fetch with extra prior window so lags/rolling are accurate at `start`.
         fetch_start = start - timedelta(days=_LOOKBACK_DAYS)
         # Need future window to compute targets at `end`.
         fetch_end = end + timedelta(days=max(_HORIZONS))
 
-        prices_df = await self._load_prices(fetch_start, fetch_end)
+        prices_df = await self._load_prices(
+            fetch_start, fetch_end,
+            commodity_kodes=commodity_kodes, region_kodes=region_kodes,
+        )
         if prices_df.empty:
             logger.warning("No prices in [%s, %s]; skipping", fetch_start, fetch_end)
             return 0
 
         calendar_df = await self._load_calendar(fetch_start, fetch_end)
-        weather_df = await self._load_weather(fetch_start, fetch_end)
+        weather_df = await self._load_weather(
+            fetch_start, fetch_end, region_kodes=region_kodes,
+        )
         macro_df = await self._load_macro(fetch_start, fetch_end)
         inflation_df = await self._load_inflation(fetch_start, fetch_end)
 
@@ -81,6 +121,11 @@ class FeatureBuilder:
         feat = self._assign_split(feat)
         feat = self._fill_metadata(feat)
 
+        # Add the *_code columns the training pipeline expects. Done after metadata
+        # so commodity_id / region_id / entity_level / unit / series_family are all
+        # set. Shared with ml/training/ via `feature_encoder.encode_codes`.
+        feat = encode_codes(feat)
+
         records = self._to_records(feat)
         await self._upsert(records)
         await self.db.commit()
@@ -89,27 +134,40 @@ class FeatureBuilder:
 
     # ── Loaders ───────────────────────────────────────────────
 
-    async def _load_prices(self, start: date, end: date) -> pd.DataFrame:
+    async def _load_prices(
+        self,
+        start: date,
+        end: date,
+        *,
+        commodity_kodes: list[str] | None = None,
+        region_kodes: list[str] | None = None,
+    ) -> pd.DataFrame:
         """Load joined prices + dim codes."""
-        rows = (await self.db.execute(
-            text("""
-                SELECT fp.tanggal AS date,
-                       fp.harga::float AS price,
-                       fp.sumber AS sumber,
-                       dc.kode_komoditas AS commodity_kode,
-                       dc.nama_display AS commodity_name,
-                       dc.satuan AS unit,
-                       dr.kode_wilayah AS region_kode,
-                       dr.nama_provinsi AS region_name,
-                       dr.level_wilayah AS entity_level
-                FROM fact_price_daily fp
-                JOIN dim_commodity dc ON dc.id = fp.commodity_id
-                JOIN dim_region dr ON dr.id = fp.region_id
-                WHERE fp.tanggal BETWEEN :start AND :end
-                ORDER BY fp.tanggal
-            """),
-            {"start": start, "end": end},
-        )).mappings().all()
+        where = ["fp.tanggal BETWEEN :start AND :end"]
+        params: dict = {"start": start, "end": end}
+        if commodity_kodes:
+            where.append("dc.kode_komoditas = ANY(:ck)")
+            params["ck"] = list(commodity_kodes)
+        if region_kodes:
+            where.append("dr.kode_wilayah = ANY(:rk)")
+            params["rk"] = list(region_kodes)
+        sql = f"""
+            SELECT fp.tanggal AS date,
+                   fp.harga::float AS price,
+                   fp.sumber AS sumber,
+                   dc.kode_komoditas AS commodity_kode,
+                   dc.nama_display AS commodity_name,
+                   dc.satuan AS unit,
+                   dr.kode_wilayah AS region_kode,
+                   dr.nama_provinsi AS region_name,
+                   dr.level_wilayah AS entity_level
+            FROM fact_price_daily fp
+            JOIN dim_commodity dc ON dc.id = fp.commodity_id
+            JOIN dim_region dr ON dr.id = fp.region_id
+            WHERE {" AND ".join(where)}
+            ORDER BY fp.tanggal
+        """
+        rows = (await self.db.execute(text(sql), params)).mappings().all()
         df = pd.DataFrame(rows)
         if df.empty:
             return df
@@ -136,22 +194,31 @@ class FeatureBuilder:
         df["date"] = pd.to_datetime(df["date"]).dt.date
         return df
 
-    async def _load_weather(self, start: date, end: date) -> pd.DataFrame:
-        rows = (await self.db.execute(
-            text("""
-                SELECT fc.tanggal AS date,
-                       dr.kode_wilayah AS region_kode,
-                       AVG(fc.curah_hujan)::float AS rainfall_1d,
-                       AVG(fc.suhu_rata)::float AS temperature_avg,
-                       COUNT(*) AS weather_station_count,
-                       SUM(CASE WHEN fc.warning_level IN ('SIAGA','AWAS','EKSTREM') THEN 1 ELSE 0 END) AS extreme_count
-                FROM fact_climate fc
-                JOIN dim_region dr ON dr.id = fc.region_id
-                WHERE fc.tanggal BETWEEN :start AND :end
-                GROUP BY fc.tanggal, dr.kode_wilayah
-            """),
-            {"start": start, "end": end},
-        )).mappings().all()
+    async def _load_weather(
+        self,
+        start: date,
+        end: date,
+        *,
+        region_kodes: list[str] | None = None,
+    ) -> pd.DataFrame:
+        where = ["fc.tanggal BETWEEN :start AND :end"]
+        params: dict = {"start": start, "end": end}
+        if region_kodes:
+            where.append("dr.kode_wilayah = ANY(:rk)")
+            params["rk"] = list(region_kodes)
+        sql = f"""
+            SELECT fc.tanggal AS date,
+                   dr.kode_wilayah AS region_kode,
+                   AVG(fc.curah_hujan)::float AS rainfall_1d,
+                   AVG(fc.suhu_rata)::float AS temperature_avg,
+                   COUNT(*) AS weather_station_count,
+                   SUM(CASE WHEN fc.warning_level IN ('SIAGA','AWAS','EKSTREM') THEN 1 ELSE 0 END) AS extreme_count
+            FROM fact_climate fc
+            JOIN dim_region dr ON dr.id = fc.region_id
+            WHERE {" AND ".join(where)}
+            GROUP BY fc.tanggal, dr.kode_wilayah
+        """
+        rows = (await self.db.execute(text(sql), params)).mappings().all()
         df = pd.DataFrame(rows)
         if df.empty:
             return df
@@ -440,6 +507,8 @@ _DB_COLUMNS = [
     "bi_rate", "fuel_price_flag",
     "target_h7", "target_h14", "target_h30",
     "has_weather", "has_macro",
+    # *_code columns from feature_encoder.encode_codes (training/inference alignment).
+    *CODE_COLUMNS,
 ]
 
 

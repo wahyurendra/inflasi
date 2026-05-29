@@ -4,11 +4,11 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text,
-    UniqueConstraint, func,
+    BigInteger, Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric,
+    String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -235,7 +235,7 @@ class AnalyticsForecast(Base):
     __tablename__ = "analytics_forecast"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tanggal: Mapped[date] = mapped_column(Date)
+    tanggal: Mapped[date] = mapped_column(Date)  # legacy: target date
     region_id: Mapped[int] = mapped_column(Integer, ForeignKey("dim_region.id"))
     commodity_id: Mapped[int] = mapped_column(Integer, ForeignKey("dim_commodity.id"))
     horizon: Mapped[int] = mapped_column(Integer)
@@ -245,8 +245,25 @@ class AnalyticsForecast(Base):
     model_version: Mapped[str] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    # v2 (migration 0004): quantile forecast + ensemble metadata
+    forecast_date: Mapped[date | None] = mapped_column(Date)  # issue date
+    target_date: Mapped[date | None] = mapped_column(Date)  # target date (mirrors tanggal)
+    target_type: Mapped[str | None] = mapped_column(String(50))  # 'price' | 'inflation' | etc.
+    p10: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    p50: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    p90: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))
+    risk_level: Mapped[str | None] = mapped_column(String(20))
+    top_drivers: Mapped[list | dict | None] = mapped_column(JSONB)
+    model_contribution: Mapped[dict | None] = mapped_column(JSONB)
+    prediction_interval: Mapped[dict | None] = mapped_column(JSONB)
+    model_run_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("model_training_runs.id"))
+
     region: Mapped["DimRegion"] = relationship(lazy="selectin")
     commodity: Mapped["DimCommodity"] = relationship(lazy="selectin")
+    components: Mapped[list["ForecastModelComponent"]] = relationship(
+        back_populates="forecast", lazy="selectin", cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint("tanggal", "region_id", "commodity_id", "horizon", name="uq_forecast"),
@@ -480,3 +497,98 @@ class UserBadge(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "badge_id"),
     )
+
+
+# ── Forecasting v2 (migration 0004) ──────────────────────────
+
+class ModelRegistry(Base):
+    __tablename__ = "model_registry"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    model_name: Mapped[str] = mapped_column(String(100))
+    model_type: Mapped[str] = mapped_column(String(50))  # lightgbm | sarimax | prophet | tft | ensemble
+    target_type: Mapped[str] = mapped_column(String(50))  # price | inflation | volatile_food_inflation
+    horizon: Mapped[int | None] = mapped_column(Integer)
+    version: Mapped[str] = mapped_column(String(100))
+    artifact_path: Mapped[str] = mapped_column(Text)
+    feature_set_version: Mapped[str | None] = mapped_column(String(100))
+    training_start_date: Mapped[date | None] = mapped_column(Date)
+    training_end_date: Mapped[date | None] = mapped_column(Date)
+    metrics: Mapped[dict | None] = mapped_column(JSONB)
+    params: Mapped[dict | None] = mapped_column(JSONB)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("model_name", "version", name="uq_model_registry_name_version"),
+    )
+
+
+class ModelTrainingRun(Base):
+    __tablename__ = "model_training_runs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    run_name: Mapped[str] = mapped_column(String(150))
+    model_type: Mapped[str] = mapped_column(String(50))
+    target_type: Mapped[str] = mapped_column(String(50))
+    horizon: Mapped[int | None] = mapped_column(Integer)
+    train_start_date: Mapped[date | None] = mapped_column(Date)
+    train_end_date: Mapped[date | None] = mapped_column(Date)
+    validation_start_date: Mapped[date | None] = mapped_column(Date)
+    validation_end_date: Mapped[date | None] = mapped_column(Date)
+    test_start_date: Mapped[date | None] = mapped_column(Date)
+    test_end_date: Mapped[date | None] = mapped_column(Date)
+    dataset_snapshot: Mapped[str | None] = mapped_column(Text)
+    feature_store_version: Mapped[str | None] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(30), default="RUNNING")  # RUNNING | SUCCESS | FAILED
+    metrics: Mapped[dict | None] = mapped_column(JSONB)
+    params: Mapped[dict | None] = mapped_column(JSONB)
+    notes: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class ForecastModelComponent(Base):
+    __tablename__ = "forecast_model_components"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    forecast_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("analytics_forecast.id", ondelete="CASCADE"),
+    )
+    model_name: Mapped[str] = mapped_column(String(100))
+    model_type: Mapped[str] = mapped_column(String(50))
+    model_version: Mapped[str | None] = mapped_column(String(100))
+    prediction: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    p10: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    p50: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    p90: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    model_weight: Mapped[Decimal | None] = mapped_column(Numeric(8, 6))
+    model_confidence: Mapped[Decimal | None] = mapped_column(Numeric(8, 6))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    forecast: Mapped["AnalyticsForecast"] = relationship(back_populates="components")
+
+
+class ForecastBacktestResult(Base):
+    __tablename__ = "forecast_backtest_results"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    model_run_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("model_training_runs.id"))
+    model_name: Mapped[str] = mapped_column(String(100))
+    model_type: Mapped[str] = mapped_column(String(50))
+    target_type: Mapped[str] = mapped_column(String(50))
+    horizon: Mapped[int | None] = mapped_column(Integer)
+    commodity_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("dim_commodity.id"))
+    region_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("dim_region.id"))
+    test_start_date: Mapped[date | None] = mapped_column(Date)
+    test_end_date: Mapped[date | None] = mapped_column(Date)
+    mae: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
+    rmse: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
+    mape: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    smape: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    wape: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    r2: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    coverage_p10_p90: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.endpoints import (
+    admin_models, internal_models,
     analytics, alerts, insights, forecast, drivers,
     regions, commodities, prices, inflation, global_signals,
     intelligence, gamification, health_db,
@@ -40,3 +41,9 @@ router.include_router(recommendations.router, prefix="/recommendations", tags=["
 
 # New — AI
 router.include_router(ai_context.router, prefix="/ai", tags=["ai"])
+
+# Admin
+router.include_router(admin_models.router, prefix="/admin/models", tags=["admin-models"])
+
+# Internal — service-to-service (ml-gateway), no auth, ClusterIP only.
+router.include_router(internal_models.router, prefix="/internal/models", tags=["internal"])

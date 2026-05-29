@@ -1,5 +1,6 @@
-# Base deps — CPU-capable. Forecasting (ARIMA/Prophet), anomaly, trust, surplus-deficit
-# all work with these. Heavy GPU/OCR libs are in requirements-gpu.txt (GPU image only).
+# Base deps — CPU-capable. Forecasting (LightGBM/Prophet/SARIMAX), anomaly, trust,
+# surplus-deficit all work with these. Heavy GPU/OCR libs are in requirements-gpu.txt
+# (GPU image only) — TFT degrades to None on the CPU image.
 fastapi>=0.109
 uvicorn[standard]>=0.27
 prometheus-fastapi-instrumentator>=7.0
@@ -9,4 +10,7 @@ pandas>=2.2
 scikit-learn>=1.4
 statsmodels>=0.14
 prophet>=1.1
+lightgbm>=4.0
+joblib>=1.3
+minio>=7.2
 httpx>=0.27

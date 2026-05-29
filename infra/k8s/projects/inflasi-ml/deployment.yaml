@@ -35,9 +35,18 @@ spec:
           imagePullPolicy: Always
           ports:
             - { containerPort: 8080, name: http }
+          envFrom:
+            # MINIO_ACCESS_KEY / MINIO_SECRET_KEY for artifact downloads.
+            - secretRef: { name: inflasi-ml-secret }
           env:
             - name: MODEL_CACHE_DIR
               value: /models
+            - name: MINIO_ENDPOINT
+              value: "inflasi-minio:9000"
+            - name: MINIO_BUCKET
+              value: "inflasi-models"
+            - name: API_GATEWAY_URL
+              value: "http://inflasi-api:8080"
           readinessProbe:
             httpGet: { path: /health, port: 8080 }
             initialDelaySeconds: 30

@@ -8,6 +8,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import router as api_router
 from app.core.redis import close_redis
+from app.workers.refresh_worker import RefreshWorker
 from app.workers.validation_pipeline import ValidationPipeline
 
 logger = logging.getLogger("inflasi-api")
@@ -72,7 +73,23 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("ValidationPipeline failed to start (Redis unavailable?)", exc_info=True)
     app.state.validation_pipeline = pipeline
+
+    # Refresh worker consumes stream:validation_done — incrementally rebuilds
+    # feature_store_daily + analytics_forecast for pairs touched by APPROVED crowd
+    # reports. Debounced ~15min. Same graceful-degradation pattern.
+    refresh = RefreshWorker()
+    try:
+        await refresh.start()
+    except Exception:
+        logger.warning("RefreshWorker failed to start (Redis unavailable?)", exc_info=True)
+    app.state.refresh_worker = refresh
+
     yield
+
+    try:
+        await refresh.stop()
+    except Exception:
+        pass
     try:
         await pipeline.stop()
     except Exception:
