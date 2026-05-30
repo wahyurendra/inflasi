@@ -14,7 +14,7 @@ export const POST = async (req: Request) => {
   const openai = new OpenAI();
   const serviceAdapter = new OpenAIAdapter({
     openai: openai as never,
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
   });
   const runtime = new CopilotRuntime();
 
