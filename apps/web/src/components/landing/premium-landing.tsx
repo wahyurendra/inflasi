@@ -210,7 +210,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="#ecosystem" className="hidden text-sm text-muted-foreground transition hover:text-foreground lg:inline">
+          <Link href="/partner" className="hidden text-sm text-muted-foreground transition hover:text-foreground lg:inline">
             Partner with us
           </Link>
           <Button asChild className="rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90">
@@ -932,7 +932,7 @@ export function CTASection() {
             <Link href="/login">Open Dashboard</Link>
           </Button>
           <Button asChild variant="outline" className="h-12 rounded-full border-white/15 bg-white/5 px-8 text-base text-foreground hover:bg-white/10 hover:text-foreground">
-            <Link href="#ecosystem">Partner With Us</Link>
+            <Link href="/partner">Partner With Us</Link>
           </Button>
         </div>
         <p className="mt-8 text-sm text-muted-foreground">Designed for citizens, local governments, researchers, and financial institutions.</p>
@@ -950,10 +950,24 @@ export function Footer() {
   ];
   // Links that have a real destination; everything else is a placeholder anchor.
   const hrefs: Record<string, string> = {
+    // Platform
     Blog: "/blog",
     Dashboard: "/welcome#dashboard",
     Heatmap: "/welcome#heatmap",
     Forecasting: "/welcome#forecasting",
+    // Data
+    Methodology: "/methodology",
+    Validation: "/methodology#validation",
+    Coverage: "/methodology#coverage",
+    // Ecosystem
+    Government: "/solutions#government",
+    Fintech: "/solutions#fintech",
+    Insurance: "/solutions#insurance",
+    Research: "/solutions#research",
+    // Company
+    About: "/about",
+    Contact: "/contact",
+    Partnership: "/partner",
   };
 
   return (
