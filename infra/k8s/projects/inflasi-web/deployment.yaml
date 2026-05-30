@@ -23,7 +23,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: web
-          image: ghcr.io/wahyurendra/inflasi-web:6dad9df4f533
+          image: ghcr.io/wahyurendra/inflasi-web:41c97c889bd3
           imagePullPolicy: Always
           ports:
             - { containerPort: 3000, name: http }
