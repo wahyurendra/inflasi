@@ -1,50 +1,31 @@
-import { NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { optionalAuth, runBff, withAuth } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: { id: string } },
 ) {
-  try {
-    const report = await apiClient.get("/reports/" + params.id);
-
-    if (!report) {
-      return NextResponse.json({ error: "Laporan tidak ditemukan" }, { status: 404 });
-    }
-
-    return NextResponse.json({ data: report });
-  } catch {
-    return NextResponse.json({ error: "Gagal mengambil data laporan" }, { status: 500 });
-  }
+  const authToken = optionalAuth(request);
+  return runBff(() => apiClient.get(`/reports/${params.id}`, undefined, { authToken }));
 }
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: { id: string } },
 ) {
-  const authToken = request.headers.get("authorization") ?? undefined;
-  if (!authToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  // Role enforcement (ADMIN / REGIONAL_OFFICER) happens in the api-gateway.
-
-  try {
+  return runBff(async () => {
+    const authToken = withAuth(request);
     const body = await request.json();
     const { status, rejectionNote } = body;
-
     if (!["APPROVED", "REJECTED", "FLAGGED", "PENDING"].includes(status)) {
-      return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
+      throw new Error("Status tidak valid (400)");
     }
-
-    const opts = { authToken };
-    const report = await apiClient.patch("/reports/" + params.id, { status, rejectionNote }, opts);
-
-    return NextResponse.json({ data: report });
-  } catch (error) {
-    console.error("Update report error:", error);
-    return NextResponse.json(
-      { error: "Gagal memperbarui laporan" },
-      { status: 500 }
-    );
-  }
+    return apiClient.patch(`/reports/${params.id}`, { status, rejectionNote }, { authToken });
+  });
 }

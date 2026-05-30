@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 # Import Base + register all ORM tables on its metadata (side-effect import).
 from app.database import Base
+from app.config import settings
 import app.models.tables  # noqa: F401
 
 config = context.config
@@ -20,11 +21,13 @@ target_metadata = Base.metadata
 
 
 def _resolve_url() -> tuple[str, dict]:
-    raw = os.getenv("ANALYTICS_DATABASE_URL") or os.getenv("DATABASE_URL", "")
+    raw = (
+        os.getenv("ANALYTICS_DATABASE_URL")
+        or os.getenv("DATABASE_URL")
+        or settings.analytics_database_url
+    )
     if raw.startswith("postgresql://"):
         raw = raw.replace("postgresql://", "postgresql+asyncpg://", 1)
-    elif not raw:
-        raw = "postgresql+asyncpg://postgres:postgres@localhost:5432/inflasi"
 
     connect_args: dict = {}
     return raw, connect_args

@@ -6,11 +6,11 @@ import {
   Fuel,
   Wheat,
   DollarSign,
-  Newspaper,
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
+import { NewsIntelligence } from "@/components/dashboard/news-intelligence";
 import {
   LineChart,
   Line,
@@ -68,21 +68,6 @@ const COMMODITY_LABELS: Record<string, string> = {
   sugar: "Gula",
   urea: "Urea (Pupuk)",
   crude_oil_brent: "Minyak Brent",
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  food_supply: "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300",
-  energy: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300",
-  geopolitics: "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-300",
-  climate: "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300",
-  agriculture: "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-300",
-  indonesia: "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300",
-};
-
-const SENTIMENT_COLORS: Record<string, string> = {
-  negative: "text-red-600",
-  neutral: "text-muted-foreground",
-  positive: "text-green-600",
 };
 
 const chartTooltipStyle = {
@@ -407,68 +392,7 @@ export default function GlobalSignalsPage() {
       </div>
 
       {/* News Intelligence */}
-      <div className="bg-card rounded-lg border p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Newspaper className="h-5 w-5 text-muted-foreground" />
-          <h3 className="font-semibold">News Intelligence</h3>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            GDELT
-          </span>
-        </div>
-        <div className="space-y-3">
-          {news.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Tidak ada berita terbaru.</p>
-          ) : (
-            news.slice(0, 10).map((n, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 rounded-lg p-3 transition hover:bg-muted/50"
-              >
-                <div className="flex-shrink-0 mt-0.5">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[n.kategori] || "bg-muted text-muted-foreground"}`}
-                  >
-                    {n.kategori}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {n.url ? (
-                      <a
-                        href={n.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-blue-600 hover:underline"
-                      >
-                        {n.judul}
-                      </a>
-                    ) : (
-                      n.judul
-                    )}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{n.sumber}</span>
-                    <span>·</span>
-                    <span>{n.tanggal}</span>
-                    {n.sentimen && (
-                      <>
-                        <span>·</span>
-                        <span
-                          className={
-                            SENTIMENT_COLORS[n.sentimen] || "text-muted-foreground"
-                          }
-                        >
-                          {n.sentimen}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <NewsIntelligence news={news} source="GDELT" />
     </div>
   );
 }

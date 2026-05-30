@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import get_current_user
+from app.core.ids import new_id
 from app.models.tables import PriceReport, DimCommodity, DimRegion, FactPriceDaily
 
 router = APIRouter()
@@ -83,9 +84,8 @@ async def create_report(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    import cuid2
     report = PriceReport(
-        id=cuid2.cuid_wrapper(),
+        id=new_id(),
         user_id=current_user["id"],
         commodity_id=body.commodityId,
         region_id=body.regionId,

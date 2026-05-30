@@ -15,12 +15,12 @@ import statistics
 from datetime import date, timedelta
 from decimal import Decimal
 
-import cuid2
 import httpx
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import select, text
 
 from app.config import settings
+from app.core.ids import new_id
 from app.core.redis import get_redis
 from app.database import async_session
 from app.etl.pipelines.market_normalizer import MarketNormalizer
@@ -245,7 +245,7 @@ class ValidationPipeline:
         else:
             title, message = "Laporan diterima", "Laporan Anda sedang menunggu tinjauan petugas."
         return Notification(
-            id=cuid2.cuid_wrapper(),
+            id=new_id(),
             user_id=report.user_id,
             type="report_validation",
             title=title,

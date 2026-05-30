@@ -62,6 +62,15 @@ async def run_analytics(session_factory: async_sessionmaker, target: date) -> No
         await InsightGenerator(db).generate("harian", target)
         logger.info("Daily insight generated")
 
+        # Auto-generated public blog article. Isolated so an LLM/API hiccup
+        # never fails the analytics batch.
+        try:
+            from app.services.blog_generator import BlogGenerator
+            post = await BlogGenerator(db).generate(target)
+            logger.info("Daily blog post generated: %s (%s)", post["slug"], post["model"])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Blog generation failed (non-fatal): %s", exc)
+
 
 async def main() -> None:
     target = date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else date.today()

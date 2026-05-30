@@ -99,9 +99,20 @@ class BPSInflationPipeline:
         self.end_year = end_year or date.today().year
         self.region_codes = region_codes or sorted(BPS_DOMAIN_MAP.keys())
         self.per_call_delay_s = per_call_delay_s
+        # Cloudflare blocks the default httpx UA on webapi.bps.go.id; mimic a
+        # real browser. follow_redirects covers periodic host moves.
         self.client = httpx.AsyncClient(
             timeout=30.0,
-            headers={"Accept": "application/json"},
+            follow_redirects=True,
+            headers={
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+                "Referer": "https://webapi.bps.go.id/",
+            },
         )
 
     async def run(self) -> int:

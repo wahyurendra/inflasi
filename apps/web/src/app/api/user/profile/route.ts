@@ -1,45 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff, withAuth } from "@/lib/api-auth";
 
-export async function GET(request: Request) {
-  try {
-    const authToken = request.headers.get("authorization") ?? undefined;
-    if (!authToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-    const opts = { authToken };
-    const user = await apiClient.get("/users/me/profile", undefined, opts);
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ data: user });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+export async function GET(request: NextRequest) {
+  return runBff(() => {
+    const authToken = withAuth(request);
+    return apiClient.get("/users/me/profile", undefined, { authToken });
+  });
 }
 
-export async function PATCH(request: Request) {
-  try {
-    const authToken = request.headers.get("authorization") ?? undefined;
-    if (!authToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { name } = body;
-
+export async function PATCH(request: NextRequest) {
+  return runBff(async () => {
+    const authToken = withAuth(request);
+    const { name } = await request.json();
     if (!name || typeof name !== "string" || name.trim().length < 2) {
-      return NextResponse.json({ error: "Nama minimal 2 karakter" }, { status: 400 });
+      throw new Error("Nama minimal 2 karakter (400)");
     }
-
-    const opts = { authToken };
-    const user = await apiClient.patch("/users/me/profile", { name: name.trim() }, opts);
-
-    return NextResponse.json({ data: user });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+    return apiClient.patch("/users/me/profile", { name: name.trim() }, { authToken });
+  });
 }

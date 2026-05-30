@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { uploadFile, validateFileType, validateFileSize } from "@/lib/storage";
 
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(request: Request) {
   // Presence check only. TODO: verify the Firebase token (firebase-admin in the
   // BFF, or route uploads through the api-gateway) before trusting the caller.

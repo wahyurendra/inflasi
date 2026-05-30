@@ -96,7 +96,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     signUpEmail: async (name, email, password) => {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      if (name) await updateProfile(cred.user, { displayName: name });
+      try {
+        if (name) await updateProfile(cred.user, { displayName: name });
+        // Explicitly provision the Postgres profile and WAIT for it — don't rely on
+        // the onAuthStateChanged side-effect, which is fire-and-forget and would leave
+        // a Firebase account with no DB row if it failed. Force-refresh so the token
+        // carries the freshly-set displayName as the `name` claim.
+        const token = await cred.user.getIdToken(true);
+        const res = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          throw new Error(`profile provisioning failed (${res.status})`);
+        }
+      } catch (err) {
+        // Roll back the orphaned Firebase account so the email is free to retry,
+        // instead of getting stuck on "email-already-in-use" with no DB profile.
+        await cred.user.delete().catch(() => signOut(auth));
+        throw err;
+      }
     },
     signInGoogle: async () => {
       await signInWithPopup(auth, googleProvider);

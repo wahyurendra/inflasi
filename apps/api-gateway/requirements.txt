@@ -20,3 +20,4 @@ cuid2>=2.0
 prophet>=1.1
 scikit-learn>=1.4
 scipy>=1.12
+openai>=1.75

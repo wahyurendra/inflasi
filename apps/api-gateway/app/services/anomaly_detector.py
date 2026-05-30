@@ -77,7 +77,7 @@ class AnomalyDetector:
                     INSERT INTO analytics_anomaly
                         (tanggal, region_id, commodity_id, anomaly_score, is_anomaly, features)
                     VALUES
-                        (:tanggal, :region_id, :commodity_id, :score, :is_anomaly, :features::jsonb)
+                        (:tanggal, :region_id, :commodity_id, :score, :is_anomaly, CAST(:features AS JSONB))
                     ON CONFLICT (tanggal, region_id, commodity_id)
                     DO UPDATE SET
                         anomaly_score = EXCLUDED.anomaly_score,

@@ -46,28 +46,43 @@ DEFAULT_GSCPI_URL = "https://www.newyorkfed.org/medialibrary/research/interactiv
 
 
 async def load_remote_xlsx(url: str) -> list[tuple[date, float]]:
-    """Download GSCPI XLSX and parse rows. Pure I/O — no DB."""
-    try:
-        from openpyxl import load_workbook
-    except Exception as exc:  # pragma: no cover — environment-specific
-        raise RuntimeError(
-            "openpyxl is required for --source remote; pip install openpyxl "
-            "or use --source csv with a local file"
-        ) from exc
+    """Download GSCPI workbook (XLS or XLSX) and parse rows. Pure I/O — no DB.
 
+    NY Fed currently serves an XLS (legacy binary, OLE compound) file under
+    `gscpi_data.xlsx` — the extension is misleading. We sniff the first few
+    bytes and dispatch to xlrd for XLS, openpyxl for true XLSX (zip).
+    """
     async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
         resp = await client.get(url)
         resp.raise_for_status()
         raw = resp.content
 
+    head = raw[:4]
+    if head[:2] == b"PK":
+        return _parse_xlsx(raw)
+    if head == b"\xd0\xcf\x11\xe0":
+        return _parse_xls(raw)
+    # Neither magic — try both, in best-effort order.
+    try:
+        return _parse_xlsx(raw)
+    except Exception:
+        return _parse_xls(raw)
+
+
+def _parse_xlsx(raw: bytes) -> list[tuple[date, float]]:
+    """Parse modern XLSX via openpyxl."""
+    try:
+        from openpyxl import load_workbook
+    except Exception as exc:
+        raise RuntimeError(
+            "openpyxl is required for XLSX; pip install openpyxl"
+        ) from exc
+
     wb = load_workbook(io.BytesIO(raw), data_only=True)
     rows: list[tuple[date, float]] = []
-    # NY Fed has historically used a sheet named like "Data" or the
-    # workbook's first non-summary sheet — iterate until we find the right
-    # columns.
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
-        header_row, date_col_idx, value_col_idx = _find_header(ws)
+        header_row, date_col_idx, value_col_idx = _find_header_xlsx(ws)
         if date_col_idx is None or value_col_idx is None:
             continue
         for r in ws.iter_rows(min_row=header_row + 1, values_only=True):
@@ -82,7 +97,35 @@ async def load_remote_xlsx(url: str) -> list[tuple[date, float]]:
     return rows
 
 
-def _find_header(ws) -> tuple[int, int | None, int | None]:
+def _parse_xls(raw: bytes) -> list[tuple[date, float]]:
+    """Parse legacy XLS via xlrd. NY Fed's published file is XLS as of 2026."""
+    try:
+        import xlrd
+    except Exception as exc:
+        raise RuntimeError(
+            "xlrd is required for legacy XLS; pip install 'xlrd>=2.0'"
+        ) from exc
+
+    wb = xlrd.open_workbook(file_contents=raw)
+    rows: list[tuple[date, float]] = []
+    for sheet in wb.sheets():
+        header_row, date_col_idx, value_col_idx = _find_header_xls(sheet)
+        if date_col_idx is None or value_col_idx is None:
+            continue
+        for ri in range(header_row + 1, sheet.nrows):
+            row = sheet.row_values(ri)
+            if date_col_idx >= len(row) or value_col_idx >= len(row):
+                continue
+            d = _coerce_date(row[date_col_idx])
+            v = _coerce_float(row[value_col_idx])
+            if d and v is not None:
+                rows.append((d, v))
+        if rows:
+            break
+    return rows
+
+
+def _find_header_xlsx(ws) -> tuple[int, int | None, int | None]:
     """Locate the (Date, GSCPI) header row inside an XLSX sheet."""
     for ri, row in enumerate(ws.iter_rows(values_only=True), start=1):
         labels = [str(c).strip().lower() if c is not None else "" for c in row]
@@ -92,6 +135,18 @@ def _find_header(ws) -> tuple[int, int | None, int | None]:
             return ri, date_idx, gscpi_idx
         if ri > 20:
             break
+    return 0, None, None
+
+
+def _find_header_xls(sheet) -> tuple[int, int | None, int | None]:
+    """Locate the (Date, GSCPI) header row inside an XLS sheet."""
+    for ri in range(min(sheet.nrows, 20)):
+        row = sheet.row_values(ri)
+        labels = [str(c).strip().lower() if c is not None else "" for c in row]
+        if "date" in labels and any("gscpi" in lab for lab in labels):
+            date_idx = labels.index("date")
+            gscpi_idx = next(i for i, lab in enumerate(labels) if "gscpi" in lab)
+            return ri, date_idx, gscpi_idx
     return 0, None, None
 
 
@@ -127,7 +182,8 @@ def _coerce_date(v: Any) -> date | None:
     s = str(v).strip()
     if not s:
         return None
-    for fmt in ("%Y-%m-%d", "%Y-%m", "%m/%d/%Y", "%d/%m/%Y"):
+    # NY Fed's GSCPI XLS uses "31-Jan-1998" — include `%d-%b-%Y`.
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%m/%d/%Y", "%d/%m/%Y", "%d-%b-%Y", "%d-%B-%Y"):
         try:
             from datetime import datetime
             return datetime.strptime(s, fmt).date().replace(day=1)

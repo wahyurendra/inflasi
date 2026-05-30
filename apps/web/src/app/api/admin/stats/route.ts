@@ -1,20 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff, withAuth } from "@/lib/api-auth";
 
-export async function GET(request: Request) {
-  try {
-    const authToken = request.headers.get("authorization") ?? undefined;
-    if (!authToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-    // ADMIN role is enforced by the api-gateway.
-    const opts = { authToken };
-    const data = await apiClient.get("/users/admin/stats", undefined, opts);
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error("Admin stats error:", error);
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
-  }
+// ADMIN role enforced server-side by the api-gateway.
+export async function GET(request: NextRequest) {
+  return runBff(() => {
+    const authToken = withAuth(request);
+    return apiClient.get("/users/admin/stats", undefined, { authToken });
+  });
 }

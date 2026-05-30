@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
-  try {
-    const result = await apiClient.get("/global-signals/");
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Global signals error:", error);
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
-  }
+  return runBff(() => apiClient.get("/global-signals/"));
 }

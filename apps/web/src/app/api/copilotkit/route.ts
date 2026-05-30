@@ -5,6 +5,11 @@ import {
 } from "@copilotkit/runtime";
 import OpenAI from "openai";
 
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const POST = async (req: Request) => {
   const openai = new OpenAI();
   const serviceAdapter = new OpenAIAdapter({

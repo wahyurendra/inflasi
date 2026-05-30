@@ -1,150 +1,155 @@
-"""
-Mapping nama wilayah dari berbagai sumber ke kode BPS.
+"""Mapping nama wilayah dari berbagai sumber ke kode `dim_region`.
 
-Setiap sumber data bisa menggunakan nama wilayah yang berbeda.
-Mapping ini menormalisasi semuanya ke kode BPS yang tersimpan di dim_region.
+History note: an earlier iteration of this map emitted 2-digit BPS province
+codes (e.g. "11" for Aceh). The dimension table has since been resnapped to
+human-readable slug codes (e.g. "aceh", "dki_jakarta") that match
+`feature_store_daily` rows seeded from the training notebook. This map now
+returns those slugs directly; downstream pipelines need no further translation.
+
+Each entry below is a variant string the source emits → slug stored in
+`dim_region.kode_wilayah`.
 """
 
-# Mapping: variant nama → kode BPS
+# Slug values must match dim_region.kode_wilayah exactly.
 REGION_NAME_TO_CODE: dict[str, str] = {
     # Nasional
-    "nasional": "00",
-    "indonesia": "00",
-    "national": "00",
+    "nasional": "nasional",
+    "indonesia": "nasional",
+    "national": "nasional",
     # Aceh
-    "aceh": "11",
-    "prov. aceh": "11",
-    "nanggroe aceh darussalam": "11",
-    "nad": "11",
+    "aceh": "aceh",
+    "prov. aceh": "aceh",
+    "nanggroe aceh darussalam": "aceh",
+    "nad": "aceh",
     # Sumatera Utara
-    "sumatera utara": "12",
-    "prov. sumatera utara": "12",
-    "sumut": "12",
-    "sumatera utara (medan)": "12",
+    "sumatera utara": "sumatera_utara",
+    "prov. sumatera utara": "sumatera_utara",
+    "sumut": "sumatera_utara",
+    "sumatera utara (medan)": "sumatera_utara",
     # Sumatera Barat
-    "sumatera barat": "13",
-    "prov. sumatera barat": "13",
-    "sumbar": "13",
+    "sumatera barat": "sumatera_barat",
+    "prov. sumatera barat": "sumatera_barat",
+    "sumbar": "sumatera_barat",
     # Riau
-    "riau": "14",
-    "prov. riau": "14",
+    "riau": "riau",
+    "prov. riau": "riau",
     # Jambi
-    "jambi": "15",
-    "prov. jambi": "15",
+    "jambi": "jambi",
+    "prov. jambi": "jambi",
     # Sumatera Selatan
-    "sumatera selatan": "16",
-    "prov. sumatera selatan": "16",
-    "sumsel": "16",
+    "sumatera selatan": "sumatera_selatan",
+    "prov. sumatera selatan": "sumatera_selatan",
+    "sumsel": "sumatera_selatan",
     # Bengkulu
-    "bengkulu": "17",
-    "prov. bengkulu": "17",
+    "bengkulu": "bengkulu",
+    "prov. bengkulu": "bengkulu",
     # Lampung
-    "lampung": "18",
-    "prov. lampung": "18",
+    "lampung": "lampung",
+    "prov. lampung": "lampung",
     # Kep. Bangka Belitung
-    "kepulauan bangka belitung": "19",
-    "bangka belitung": "19",
-    "babel": "19",
-    "kep. bangka belitung": "19",
+    "kepulauan bangka belitung": "kepulauan_bangka_belitung",
+    "bangka belitung": "kepulauan_bangka_belitung",
+    "babel": "kepulauan_bangka_belitung",
+    "kep. bangka belitung": "kepulauan_bangka_belitung",
     # Kep. Riau
-    "kepulauan riau": "21",
-    "kep. riau": "21",
-    "kepri": "21",
+    "kepulauan riau": "kepulauan_riau",
+    "kep. riau": "kepulauan_riau",
+    "kepri": "kepulauan_riau",
     # DKI Jakarta
-    "dki jakarta": "31",
-    "prov. dki jakarta": "31",
-    "jakarta": "31",
+    "dki jakarta": "dki_jakarta",
+    "prov. dki jakarta": "dki_jakarta",
+    "jakarta": "dki_jakarta",
     # Jawa Barat
-    "jawa barat": "32",
-    "prov. jawa barat": "32",
-    "jabar": "32",
+    "jawa barat": "jawa_barat",
+    "prov. jawa barat": "jawa_barat",
+    "jabar": "jawa_barat",
     # Jawa Tengah
-    "jawa tengah": "33",
-    "prov. jawa tengah": "33",
-    "jateng": "33",
+    "jawa tengah": "jawa_tengah",
+    "prov. jawa tengah": "jawa_tengah",
+    "jateng": "jawa_tengah",
     # DI Yogyakarta
-    "di yogyakarta": "34",
-    "d.i. yogyakarta": "34",
-    "yogyakarta": "34",
-    "diy": "34",
-    "jogja": "34",
+    "di yogyakarta": "di_yogyakarta",
+    "d.i. yogyakarta": "di_yogyakarta",
+    "yogyakarta": "di_yogyakarta",
+    "diy": "di_yogyakarta",
+    "jogja": "di_yogyakarta",
     # Jawa Timur
-    "jawa timur": "35",
-    "prov. jawa timur": "35",
-    "jatim": "35",
+    "jawa timur": "jawa_timur",
+    "prov. jawa timur": "jawa_timur",
+    "jatim": "jawa_timur",
     # Banten
-    "banten": "36",
-    "prov. banten": "36",
+    "banten": "banten",
+    "prov. banten": "banten",
     # Bali
-    "bali": "51",
-    "prov. bali": "51",
+    "bali": "bali",
+    "prov. bali": "bali",
     # NTB
-    "nusa tenggara barat": "52",
-    "ntb": "52",
-    "prov. nusa tenggara barat": "52",
+    "nusa tenggara barat": "nusa_tenggara_barat",
+    "ntb": "nusa_tenggara_barat",
+    "prov. nusa tenggara barat": "nusa_tenggara_barat",
     # NTT
-    "nusa tenggara timur": "53",
-    "ntt": "53",
-    "prov. nusa tenggara timur": "53",
+    "nusa tenggara timur": "nusa_tenggara_timur",
+    "ntt": "nusa_tenggara_timur",
+    "prov. nusa tenggara timur": "nusa_tenggara_timur",
     # Kalimantan Barat
-    "kalimantan barat": "61",
-    "prov. kalimantan barat": "61",
-    "kalbar": "61",
+    "kalimantan barat": "kalimantan_barat",
+    "prov. kalimantan barat": "kalimantan_barat",
+    "kalbar": "kalimantan_barat",
     # Kalimantan Tengah
-    "kalimantan tengah": "62",
-    "prov. kalimantan tengah": "62",
-    "kalteng": "62",
+    "kalimantan tengah": "kalimantan_tengah",
+    "prov. kalimantan tengah": "kalimantan_tengah",
+    "kalteng": "kalimantan_tengah",
     # Kalimantan Selatan
-    "kalimantan selatan": "63",
-    "prov. kalimantan selatan": "63",
-    "kalsel": "63",
+    "kalimantan selatan": "kalimantan_selatan",
+    "prov. kalimantan selatan": "kalimantan_selatan",
+    "kalsel": "kalimantan_selatan",
     # Kalimantan Timur
-    "kalimantan timur": "64",
-    "prov. kalimantan timur": "64",
-    "kaltim": "64",
+    "kalimantan timur": "kalimantan_timur",
+    "prov. kalimantan timur": "kalimantan_timur",
+    "kaltim": "kalimantan_timur",
     # Kalimantan Utara
-    "kalimantan utara": "65",
-    "prov. kalimantan utara": "65",
-    "kaltara": "65",
+    "kalimantan utara": "kalimantan_utara",
+    "prov. kalimantan utara": "kalimantan_utara",
+    "kaltara": "kalimantan_utara",
     # Sulawesi Utara
-    "sulawesi utara": "71",
-    "prov. sulawesi utara": "71",
-    "sulut": "71",
+    "sulawesi utara": "sulawesi_utara",
+    "prov. sulawesi utara": "sulawesi_utara",
+    "sulut": "sulawesi_utara",
     # Sulawesi Tengah
-    "sulawesi tengah": "72",
-    "prov. sulawesi tengah": "72",
-    "sulteng": "72",
+    "sulawesi tengah": "sulawesi_tengah",
+    "prov. sulawesi tengah": "sulawesi_tengah",
+    "sulteng": "sulawesi_tengah",
     # Sulawesi Selatan
-    "sulawesi selatan": "73",
-    "prov. sulawesi selatan": "73",
-    "sulsel": "73",
+    "sulawesi selatan": "sulawesi_selatan",
+    "prov. sulawesi selatan": "sulawesi_selatan",
+    "sulsel": "sulawesi_selatan",
     # Sulawesi Tenggara
-    "sulawesi tenggara": "74",
-    "prov. sulawesi tenggara": "74",
-    "sultra": "74",
+    "sulawesi tenggara": "sulawesi_tenggara",
+    "prov. sulawesi tenggara": "sulawesi_tenggara",
+    "sultra": "sulawesi_tenggara",
     # Gorontalo
-    "gorontalo": "75",
-    "prov. gorontalo": "75",
+    "gorontalo": "gorontalo",
+    "prov. gorontalo": "gorontalo",
     # Sulawesi Barat
-    "sulawesi barat": "76",
-    "prov. sulawesi barat": "76",
-    "sulbar": "76",
+    "sulawesi barat": "sulawesi_barat",
+    "prov. sulawesi barat": "sulawesi_barat",
+    "sulbar": "sulawesi_barat",
     # Maluku
-    "maluku": "81",
-    "prov. maluku": "81",
+    "maluku": "maluku",
+    "prov. maluku": "maluku",
     # Maluku Utara
-    "maluku utara": "82",
-    "prov. maluku utara": "82",
-    "malut": "82",
+    "maluku utara": "maluku_utara",
+    "prov. maluku utara": "maluku_utara",
+    "malut": "maluku_utara",
     # Papua
-    "papua": "91",
-    "prov. papua": "91",
+    "papua": "papua",
+    "prov. papua": "papua",
     # Papua Barat
-    "papua barat": "92",
-    "prov. papua barat": "92",
+    "papua barat": "papua_barat",
+    "prov. papua barat": "papua_barat",
 }
 
 
 def normalize_region(name: str) -> str | None:
-    """Normalize nama wilayah ke kode BPS. Returns None jika tidak ditemukan."""
+    """Normalize nama wilayah ke slug dim_region.kode_wilayah. None jika unknown."""
     return REGION_NAME_TO_CODE.get(name.strip().lower())

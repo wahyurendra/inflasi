@@ -220,10 +220,10 @@ class MonthlyFeatureBuilder:
                 WHERE region_id = :region_id
                   AND (kelompok IS NULL OR kelompok = 'umum')
                   AND periode IN (
-                    (:period::date - INTERVAL '1 month')::date,
-                    (:period::date - INTERVAL '3 months')::date,
-                    (:period::date - INTERVAL '6 months')::date,
-                    (:period::date - INTERVAL '12 months')::date
+                    (CAST(:period AS DATE) - INTERVAL '1 month')::date,
+                    (CAST(:period AS DATE) - INTERVAL '3 months')::date,
+                    (CAST(:period AS DATE) - INTERVAL '6 months')::date,
+                    (CAST(:period AS DATE) - INTERVAL '12 months')::date
                   )
             """),
             {"period": period, "region_id": region_id},
@@ -242,10 +242,10 @@ class MonthlyFeatureBuilder:
         row = (await self.db.execute(
             text("""
                 SELECT
-                  AVG(CASE WHEN periode > (:period::date - INTERVAL '3 months') THEN inflasi_mtm END) AS roll3,
-                  AVG(CASE WHEN periode > (:period::date - INTERVAL '6 months') THEN inflasi_mtm END) AS roll6,
-                  STDDEV_SAMP(CASE WHEN periode > (:period::date - INTERVAL '3 months') THEN inflasi_mtm END) AS std3,
-                  STDDEV_SAMP(CASE WHEN periode > (:period::date - INTERVAL '6 months') THEN inflasi_mtm END) AS std6
+                  AVG(CASE WHEN periode > (CAST(:period AS DATE) - INTERVAL '3 months') THEN inflasi_mtm END) AS roll3,
+                  AVG(CASE WHEN periode > (CAST(:period AS DATE) - INTERVAL '6 months') THEN inflasi_mtm END) AS roll6,
+                  STDDEV_SAMP(CASE WHEN periode > (CAST(:period AS DATE) - INTERVAL '3 months') THEN inflasi_mtm END) AS std3,
+                  STDDEV_SAMP(CASE WHEN periode > (CAST(:period AS DATE) - INTERVAL '6 months') THEN inflasi_mtm END) AS std6
                 FROM fact_inflation_monthly
                 WHERE region_id = :region_id
                   AND (kelompok IS NULL OR kelompok = 'umum')
@@ -277,14 +277,14 @@ class MonthlyFeatureBuilder:
                   SELECT AVG(harga::float) AS avg_prev
                   FROM fact_price_daily
                   WHERE region_id = :region_id
-                    AND date_trunc('month', tanggal) = (:period::date - INTERVAL '1 month')::date
+                    AND date_trunc('month', tanggal) = (CAST(:period AS DATE) - INTERVAL '1 month')::date
                 ),
                 base AS (
                   SELECT AVG(harga::float) AS avg_base
                   FROM fact_price_daily
                   WHERE region_id = :region_id
-                    AND tanggal BETWEEN (:period::date - INTERVAL '6 months')::date
-                                    AND (:period::date - INTERVAL '1 day')::date
+                    AND tanggal BETWEEN (CAST(:period AS DATE) - INTERVAL '6 months')::date
+                                    AND (CAST(:period AS DATE) - INTERVAL '1 day')::date
                 )
                 SELECT cur.avg_now, prev.avg_prev, base.avg_base
                 FROM cur, prev, base
@@ -328,7 +328,7 @@ class MonthlyFeatureBuilder:
                         FROM fact_price_daily
                         WHERE region_id = :region_id
                           AND commodity_id IN (SELECT id FROM ids)
-                          AND date_trunc('month', tanggal) = (:period::date - INTERVAL '1 month')::date
+                          AND date_trunc('month', tanggal) = (CAST(:period AS DATE) - INTERVAL '1 month')::date
                     )
                     SELECT cur.avg_now, prev.avg_prev FROM cur, prev
                 """),
@@ -356,8 +356,8 @@ class MonthlyFeatureBuilder:
                   SELECT AVG(curah_hujan::float) AS rain_base
                   FROM fact_climate
                   WHERE region_id = :region_id
-                    AND tanggal BETWEEN (:period::date - INTERVAL '12 months')::date
-                                    AND (:period::date - INTERVAL '1 day')::date
+                    AND tanggal BETWEEN (CAST(:period AS DATE) - INTERVAL '12 months')::date
+                                    AND (CAST(:period AS DATE) - INTERVAL '1 day')::date
                 )
                 SELECT cur.rain_now, cur.temp_now, cur.extreme, base.rain_base
                 FROM cur, base
@@ -387,7 +387,7 @@ class MonthlyFeatureBuilder:
                 prev AS (
                   SELECT AVG(kurs_usd_idr::float) AS k_prev, AVG(harga_bbm::float) AS b_prev
                   FROM fact_macro_driver
-                  WHERE date_trunc('month', tanggal) = (:period::date - INTERVAL '1 month')::date
+                  WHERE date_trunc('month', tanggal) = (CAST(:period AS DATE) - INTERVAL '1 month')::date
                 )
                 SELECT cur.k, cur.b, prev.k_prev, prev.b_prev FROM cur, prev
             """),
@@ -437,9 +437,9 @@ class MonthlyFeatureBuilder:
                 WHERE region_id = :region_id
                   AND (kelompok IS NULL OR kelompok = 'umum')
                   AND periode IN (
-                    (:period::date + INTERVAL '1 month')::date,
-                    (:period::date + INTERVAL '3 months')::date,
-                    (:period::date + INTERVAL '6 months')::date
+                    (CAST(:period AS DATE) + INTERVAL '1 month')::date,
+                    (CAST(:period AS DATE) + INTERVAL '3 months')::date,
+                    (CAST(:period AS DATE) + INTERVAL '6 months')::date
                   )
             """),
             {"period": period, "region_id": region_id},

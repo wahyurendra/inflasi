@@ -1,28 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff, withAuth } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-  const authToken = request.headers.get("authorization") ?? undefined;
-  if (!authToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const params: Record<string, string> = {};
-  params.page = searchParams.get("page") || "1";
-  params.limit = searchParams.get("limit") || "20";
-
-  try {
-    const opts = { authToken };
-    const data = await apiClient.get("/reports/my", params, opts);
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({
-      data: [],
-      total: 0,
-      page: 1,
-      totalPages: 0,
-      source: "mock",
-    });
-  }
+  return runBff(() => {
+    const authToken = withAuth(request);
+    const { searchParams } = new URL(request.url);
+    const params: Record<string, string> = {
+      page: searchParams.get("page") || "1",
+      limit: searchParams.get("limit") || "20",
+    };
+    return apiClient.get("/reports/my", params, { authToken });
+  });
 }

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import get_current_user
+from app.core.ids import new_id
 from app.models.tables import Notification
 
 router = APIRouter()
@@ -73,9 +74,8 @@ async def create_notification(
     body: CreateNotificationRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    import cuid2
     notif = Notification(
-        id=cuid2.cuid_wrapper(),
+        id=new_id(),
         user_id=body.userId,
         type=body.type,
         title=body.title,

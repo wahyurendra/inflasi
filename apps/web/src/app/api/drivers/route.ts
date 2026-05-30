@@ -1,21 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+import { toBackendCommodity, toBackendRegion } from "@/lib/region-mapping";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const commodity = searchParams.get("commodity") || "CABAI_RAWIT";
   const region = searchParams.get("region") || "00";
-
-  try {
-    const result = await apiClient.get("/drivers/analysis", { commodity, region });
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Drivers error:", error);
-    return NextResponse.json({
-      commodity_code: commodity,
-      region_code: region,
-      drivers: [],
-      error: "Analytics service error",
-    }, { status: 503 });
-  }
+  return runBff(() =>
+    apiClient.get("/drivers/analysis", {
+      commodity: toBackendCommodity(commodity),
+      region: toBackendRegion(region),
+    }),
+  );
 }

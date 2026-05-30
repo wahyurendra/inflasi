@@ -102,6 +102,18 @@ def upgrade() -> None:
         )
         return
 
+    # Inbound FK that depends on analytics_forecast(id). The PK rewrite below
+    # would fail with "cannot drop constraint ... because other objects depend
+    # on it" unless we drop the dependent FK first. We don't recreate it: under
+    # TimescaleDB, FK targets must include the partitioning column, and the
+    # components table doesn't carry the target date. Application code
+    # (`ForecastRepo.replace_components`) already wipes-and-rewrites components
+    # before each forecast upsert, so the integrity loss is bounded.
+    op.execute(
+        "ALTER TABLE forecast_model_components "
+        "DROP CONSTRAINT IF EXISTS forecast_model_components_forecast_id_fkey"
+    )
+
     for table, time_col in _HYPERTABLES:
         # Make sure the PK includes the time column.
         op.execute(_ENSURE_PK_INCLUDES_TIME.format(table=table, time_col=time_col))

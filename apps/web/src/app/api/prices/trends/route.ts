@@ -1,5 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+import {
+  toBackendCommodity,
+  toBackendRegion,
+  toFrontendCommodity,
+  toBpsCode,
+} from "@/lib/region-mapping";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+interface BackendPriceRow {
+  tanggal: string;
+  harga: number;
+  perubahanHarian: number | null;
+  perubahanMingguan: number | null;
+  perubahanBulanan: number | null;
+  commodity: { kode: string; nama: string };
+  region: { kode: string; nama: string };
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -8,16 +30,34 @@ export async function GET(request: NextRequest) {
   const days = searchParams.get("days") || "30";
 
   if (!commodity) {
-    return NextResponse.json({ error: "commodity parameter required" }, { status: 400 });
+    return NextResponse.json(
+      { detail: "commodity parameter required" },
+      { status: 400 },
+    );
   }
 
-  try {
-    const params: Record<string, string> = { commodity, region, days };
-
-    const result = await apiClient.get("/prices/trends", params);
-
-    return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ commodity: null, region: null, data: [], summary: null, source: "mock" });
-  }
+  return runBff(async () => {
+    const result = await apiClient.get<{ data: BackendPriceRow[] }>(
+      "/prices/trends",
+      {
+        commodity: toBackendCommodity(commodity),
+        region: toBackendRegion(region),
+        days,
+      },
+    );
+    return {
+      ...result,
+      data: (result.data ?? []).map((row) => ({
+        ...row,
+        commodity: {
+          ...row.commodity,
+          kode: toFrontendCommodity(row.commodity.kode),
+        },
+        region: {
+          ...row.region,
+          kode: toBpsCode(row.region.kode, row.region.nama),
+        },
+      })),
+    };
+  });
 }

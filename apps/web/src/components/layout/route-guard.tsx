@@ -25,11 +25,11 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
     }
     const r = role ?? "";
     if (ADMIN_ROUTES.some((x) => pathname.startsWith(x)) && r !== "ADMIN") {
-      router.replace("/");
+      router.replace("/beranda");
     } else if (OFFICER_ROUTES.some((x) => pathname.startsWith(x)) && !["ADMIN", "REGIONAL_OFFICER"].includes(r)) {
-      router.replace("/");
+      router.replace("/beranda");
     } else if (ANALYST_ROUTES.some((x) => pathname.startsWith(x)) && !["ADMIN", "GOVERNMENT_ANALYST"].includes(r)) {
-      router.replace("/");
+      router.replace("/beranda");
     }
   }, [isAuthenticated, isLoading, role, pathname, router]);
 
