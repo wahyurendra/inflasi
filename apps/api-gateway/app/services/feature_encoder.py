@@ -107,9 +107,17 @@ def encode_codes(df: pd.DataFrame) -> pd.DataFrame:
     Operates in place — returns the same DataFrame for chaining. Idempotent:
     re-running on an already-encoded frame produces identical values.
     """
-    # ID hashes
-    df["commodity_id_code"] = df["commodity_id"].map(_hash32).astype("int64")
-    df["region_id_code"] = df["region_id"].map(_hash32).astype("int64")
+    # ID hashes. Accept either the `*_id` names (training parquet) or the
+    # `*_kode` names (serving path before rename) so a column-naming slip in one
+    # caller can't crash the encoder — and the analytics batch — outright.
+    commodity_ids = _col(df, "commodity_id")
+    if commodity_ids.isna().all() and "commodity_kode" in df.columns:
+        commodity_ids = df["commodity_kode"]
+    region_ids = _col(df, "region_id")
+    if region_ids.isna().all() and "region_kode" in df.columns:
+        region_ids = df["region_kode"]
+    df["commodity_id_code"] = commodity_ids.map(_hash32).astype("int64")
+    df["region_id_code"] = region_ids.map(_hash32).astype("int64")
     if "entity_id" in df.columns:
         df["entity_id_code"] = df["entity_id"].map(_hash32).astype("int64")
     else:

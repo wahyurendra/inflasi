@@ -266,9 +266,19 @@ class AlertEngine:
             SELECT
                 rc.region_id,
                 dr.nama_provinsi,
-                rc.rising_count
+                rc.rising_count,
+                top.commodity_id AS top_commodity_id
             FROM region_counts rc
             JOIN dim_region dr ON dr.id = rc.region_id
+            -- Anchor the alert to a real commodity (the biggest riser in the
+            -- region) so it satisfies the commodity_id FK and is meaningful.
+            JOIN LATERAL (
+                SELECT r.commodity_id
+                FROM rising r
+                WHERE r.region_id = rc.region_id
+                ORDER BY r.pct_change DESC
+                LIMIT 1
+            ) top ON TRUE
             WHERE dr.level_wilayah = 'provinsi'
         """)
 
@@ -284,12 +294,12 @@ class AlertEngine:
 
         alerts = []
         for row in result.fetchall():
-            # Use commodity_id=0 as a placeholder for multi-commodity alerts
-            # We need a valid reference, so we'll use the first commodity
+            # Anchor to the region's biggest riser — a real commodity_id (FK-safe)
+            # and more informative than an arbitrary placeholder.
             alerts.append({
                 "tanggal": tanggal,
                 "region_id": row.region_id,
-                "commodity_id": 1,  # placeholder
+                "commodity_id": row.top_commodity_id,
                 "alert_type": "multi_commodity",
                 "severity": "critical",
                 "judul": f"{row.nama_provinsi}: {row.rising_count} komoditas naik >{MULTI_COMMODITY_PCT}% bersamaan",

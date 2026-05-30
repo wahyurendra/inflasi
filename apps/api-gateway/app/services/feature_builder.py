@@ -437,6 +437,13 @@ class FeatureBuilder:
                 "nasional": "national",
             }.get(lv, lv)
         )
+        # Promote the natural-grain kode columns to the id names the encoder and
+        # DB schema use (feature_store_daily stores the kode string as
+        # commodity_id / region_id). Done here — after the joins above which key
+        # on *_kode — so encode_codes() and _to_records() see commodity_id /
+        # region_id directly. Keeps the serving path identical to the training
+        # parquet (no train/serve skew).
+        feat = feat.rename(columns={"commodity_kode": "commodity_id", "region_kode": "region_id"})
         return feat
 
     # ── Upsert ────────────────────────────────────────────────
