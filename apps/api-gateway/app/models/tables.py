@@ -20,7 +20,7 @@ class DimRegion(Base):
     __tablename__ = "dim_region"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    kode_wilayah: Mapped[str] = mapped_column(String(10), unique=True)
+    kode_wilayah: Mapped[str] = mapped_column(String(50), unique=True)
     nama_provinsi: Mapped[str] = mapped_column(String(100))
     nama_kab_kota: Mapped[str | None] = mapped_column(String(100))
     level_wilayah: Mapped[str] = mapped_column(String(20))
@@ -254,6 +254,31 @@ class AnalyticsInsight(Base):
     konten: Mapped[str] = mapped_column(Text)
     data_snapshot: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ContentBlogPost(Base):
+    """Auto-generated public blog articles (one per day via the analytics batch)."""
+
+    __tablename__ = "content_blog_posts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(220), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    excerpt: Mapped[str] = mapped_column(String(400), default="")
+    body_md: Mapped[str] = mapped_column(Text)
+    tipe: Mapped[str] = mapped_column(String(20), default="harian")
+    status: Mapped[str] = mapped_column(String(20), default="published")
+    tanggal: Mapped[date] = mapped_column(Date)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime)
+    tags: Mapped[list | None] = mapped_column(JSONB)
+    data_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    model: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("tanggal", "tipe", name="uq_blog_tanggal_tipe"),
+    )
 
 
 class AnalyticsForecast(Base):

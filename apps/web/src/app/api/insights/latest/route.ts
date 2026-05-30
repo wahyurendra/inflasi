@@ -1,16 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const tipe = request.nextUrl.searchParams.get("type") || "harian";
-
-  try {
-    const params: Record<string, string> = { type: tipe };
-
-    const result = await apiClient.get("/insights/latest", params);
-
-    return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ data: null, source: "mock" });
-  }
+  return runBff(() => apiClient.get("/insights/latest", { type: tipe }));
 }

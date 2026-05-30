@@ -1,20 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const commodity = searchParams.get("commodity") || "";
-
-  try {
-    const params: Record<string, string> = {};
-    if (commodity) {
-      params.commodity = commodity;
-    }
-
-    const result = await apiClient.get("/intelligence/comparison", params);
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Comparison error:", error);
-    return NextResponse.json({ data: [], error: "Database error" }, { status: 500 });
-  }
+  const params: Record<string, string> = {};
+  if (commodity) params.commodity = commodity;
+  return runBff(() => apiClient.get("/intelligence/comparison", params));
 }

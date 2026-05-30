@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { apiClient } from "@/lib/api-client";
 
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   const health: Record<string, unknown> = {
     status: "ok",

@@ -1,11 +1,11 @@
 from datetime import date, timedelta
 
-import cuid2
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ids import new_id
 from app.database import get_db
 from app.models.tables import UserPoints, UserBadge, Badge
 
@@ -138,7 +138,7 @@ async def upsert_points(
 
     if not up:
         up = UserPoints(
-            id=cuid2.cuid_wrapper(),
+            id=new_id(),
             user_id=body.userId,
             total_points=body.points,
             monthly_points=body.points,
@@ -177,7 +177,7 @@ async def update_streak(
 
     if not up:
         up = UserPoints(
-            id=cuid2.cuid_wrapper(),
+            id=new_id(),
             user_id=body.userId,
             current_streak=1,
             longest_streak=1,
@@ -232,7 +232,7 @@ async def award_badge(
 
     if not ub:
         ub = UserBadge(
-            id=cuid2.cuid_wrapper(),
+            id=new_id(),
             user_id=body.userId,
             badge_id=badge.id,
         )

@@ -13,7 +13,6 @@ import logging
 import csv
 import io
 from datetime import date
-from typing import Any
 
 import httpx
 from sqlalchemy import text
@@ -21,9 +20,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-# FAO official CSV for food price index data
-# This is the actual downloadable CSV from FAO's website
-FAO_CSV_URL = "https://www.fao.org/fileadmin/templates/worldfood/Reports_and_docs/Food_price_indices_data_jul14.csv"
+# FAO official CSV for food price index data. The original
+# `Food_price_indices_data_jul14.csv` URL retired; the file now lives under
+# /media/docs/worldfoodsituationlibraries/default-document-library/.
+FAO_CSV_URL = (
+    "https://www.fao.org/media/docs/worldfoodsituationlibraries/"
+    "default-document-library/food_price_indices_data.csv"
+)
 
 # Alternative: FAO FPMA Tool API
 FPMA_API_URL = "https://fpma.fao.org/giews/fpmat4/api"
@@ -89,7 +92,12 @@ class FAOFoodPricePipeline:
     async def _fetch_from_fao_csv(self) -> list[dict]:
         """
         Fetch from FAO official CSV data.
-        The CSV contains monthly indices with columns for each food group.
+
+        Layout (current as of 2026): the file leads with 2-3 title rows
+        ("FAO Food Price Index", "2014-2016=100", ...) before the actual
+        header `Date,Food Price Index,Meat,Dairy,Cereals,Oils,Sugar,...`.
+        We scan for the row whose first cell is "Date" and treat it as the
+        header.
         """
         resp = await self.client.get(FAO_CSV_URL)
         if resp.status_code != 200:
@@ -100,33 +108,33 @@ class FAOFoodPricePipeline:
         if not content or len(content) < 100:
             return []
 
-        # Try different CSV dialects (FAO uses various formats)
-        results = []
+        # Split into rows; find the header row dynamically.
+        all_rows = list(csv.reader(io.StringIO(content)))
+        header_idx = None
+        for i, row in enumerate(all_rows):
+            if row and row[0].strip().lower() == "date":
+                header_idx = i
+                break
+        if header_idx is None:
+            logger.warning(f"[{self.name}] FAO CSV header row not found")
+            return []
 
-        # Try standard CSV parsing
-        try:
-            reader = csv.DictReader(io.StringIO(content))
-            headers = reader.fieldnames or []
-            logger.debug(f"[{self.name}] FAO CSV headers: {headers}")
-
-            for row in reader:
-                try:
-                    record = self._parse_fao_row(row)
-                    if record:
-                        results.append(record)
-                except (ValueError, TypeError) as e:
-                    logger.debug(f"[{self.name}] Skip row: {e}")
-                    continue
-        except csv.Error:
-            # Try tab-separated
-            reader = csv.DictReader(io.StringIO(content), delimiter="\t")
-            for row in reader:
-                try:
-                    record = self._parse_fao_row(row)
-                    if record:
-                        results.append(record)
-                except (ValueError, TypeError):
-                    continue
+        headers = [c.strip() for c in all_rows[header_idx]]
+        results: list[dict] = []
+        for raw in all_rows[header_idx + 1:]:
+            if not raw or not (raw[0] or "").strip():
+                continue
+            row_dict = {
+                headers[i]: raw[i] if i < len(raw) else None
+                for i in range(len(headers))
+            }
+            try:
+                record = self._parse_fao_row(row_dict)
+                if record:
+                    results.append(record)
+            except (ValueError, TypeError) as e:
+                logger.debug(f"[{self.name}] Skip row: {e}")
+                continue
 
         return results
 

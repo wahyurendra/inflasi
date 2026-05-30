@@ -1,15 +1,11 @@
-import { NextResponse } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
-  try {
-    const result = await apiClient.get("/recommendations/");
-    return NextResponse.json({ recommendations: result });
-  } catch (error) {
-    console.error("Recommendations error:", error);
-    return NextResponse.json({
-      recommendations: [],
-      error: "Analytics service error",
-    }, { status: 503 });
-  }
+  return runBff(() => apiClient.get("/recommendations/"));
 }

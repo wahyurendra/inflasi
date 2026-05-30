@@ -16,52 +16,104 @@ from app.workers.validation_pipeline import ValidationPipeline
 logger = logging.getLogger("inflasi-api")
 
 DESCRIPTION = """
-## INFLASI Analytics API
+Backend gateway untuk platform pemantauan inflasi pangan Indonesia.
+Menyajikan data harga, prediksi multi-horizon, deteksi anomali, dan crowdsourcing
+laporan harga di atas PostgreSQL + TimescaleDB, dengan ML ensemble diserve oleh
+service `ml-gateway` (LightGBM / Prophet / SARIMAX / TFT / Stacking).
 
-Backend analytics engine untuk platform pemantauan inflasi pangan Indonesia.
+## Autentikasi
 
-### Fitur Utama
+Endpoint publik (read-only) tidak memerlukan token. Endpoint user (reports,
+notifications, gamification) dan admin (`/admin/*`) memerlukan **Firebase ID
+token** di header:
 
-- **Analytics** — Kalkulasi perubahan harga, volatilitas, dan risk score
-- **Alerts** — Deteksi anomali harga dan sistem peringatan dini
-- **Insights** — Ringkasan analitik harian dan mingguan
-- **Forecast** — Prediksi harga komoditas menggunakan Prophet
-- **Drivers** — Analisis faktor penggerak inflasi
+```
+Authorization: Bearer <FIREBASE_ID_TOKEN>
+```
 
-### Data Sources
+Klik tombol **Authorize** di kanan atas untuk inject token ke semua endpoint
+saat mencoba. Role-based access (ADMIN / GOVERNMENT_ANALYST / CONTRIBUTOR /
+REPORTER) di-resolve di Postgres berdasarkan `firebase_uid`.
 
-| Sumber | Deskripsi |
-|--------|-----------|
-| PIHPS BI | Harga pangan harian dari Bank Indonesia |
-| BPS | Data inflasi resmi Badan Pusat Statistik |
-| BMKG | Data cuaca dan iklim |
-| EIA | Harga energi global (minyak, gas) |
+## Forecasting v2
+
+`POST /api/forecast/price` mengembalikan quantile forecast (p10/p50/p90),
+risk level, top drivers, dan kontribusi tiap base-model. Versi model di-stamp
+dari `model_registry` (lihat `/api/admin/models`). Persist ke
+`analytics_forecast` + `forecast_model_components`.
+
+## Data Sources
+
+| Sumber | Layer | Frekuensi |
+|--------|-------|-----------|
+| PIHPS Bank Indonesia | `fact_price_daily` | Harian |
+| BPS | `fact_inflation_monthly` | Bulanan |
+| BMKG | `fact_climate` | Harian |
+| BAPANAS | `fact_supply_stock` | Harian |
+| FAO Food Price Index | `ext_fao_food_price` | Bulanan |
+| World Bank Commodities | `ext_commodity_price` | Bulanan |
+| EIA Energy | `ext_energy_price` | Harian |
+| BI JISDOR / ECB | `ext_exchange_rate`, `fact_macro_driver` | Harian |
+| GSCPI | `ext_supply_chain_index` | Bulanan |
+
+## Konvensi
+
+- Semua tanggal: ISO 8601 (`YYYY-MM-DD`).
+- Mata uang: IDR.
+- Error: `{"detail": "<message>"}` dengan status code HTTP standar
+  (400 invalid body, 401 unauth, 403 forbidden, 404 not found, 422 validation,
+  500 internal).
+- Pagination: `?limit=&offset=` di endpoint list.
 """
 
 tags_metadata = [
+    # ── Meta ──────────────────────────────────────────────────
+    {"name": "health", "description": "Health check & liveness/readiness probes."},
+
+    # ── Reference data ────────────────────────────────────────
+    {"name": "regions", "description": "Master wilayah (34 provinsi + agregat nasional). Slug `kode_wilayah` digunakan sebagai foreign-key string di `feature_store_daily`."},
+    {"name": "commodities", "description": "Master komoditas (beras, bawang, cabai, daging, telur, gula, tepung). Includes kategori & satuan."},
+    {"name": "markets", "description": "Master pasar (`dim_market`) — normalisasi nama pasar dari laporan crowdsourcing per wilayah."},
+
+    # ── Data layer ───────────────────────────────────────────
+    {"name": "prices", "description": "Akses `fact_price_daily` — harga harian resmi/agregat. Filter per commodity/region/date range."},
+    {"name": "inflation", "description": "Akses `fact_inflation_monthly` — IHK & inflasi mtm/ytd/yoy per wilayah dan kelompok."},
+    {"name": "global-signals", "description": "Sinyal global: FAO Food Price Index, harga energi (EIA), kurs, GSCPI, harga komoditas dunia."},
+
+    # ── Analytics / ML ────────────────────────────────────────
+    {"name": "analytics", "description": "Agregasi & ringkasan harga: perubahan harian/mingguan/bulanan, volatilitas, ranking komoditas-wilayah."},
+    {"name": "forecast", "description": "Prediksi harga multi-horizon. `POST /forecast/price` (v2) → quantile p10/p50/p90 + risk level + driver + per-model components. Legacy `GET /forecast/prices` masih tersedia."},
+    {"name": "drivers", "description": "Analisis faktor penggerak perubahan harga (cuaca anomali, kurs, BBM, supply stock)."},
+    {"name": "alerts", "description": "Peringatan dini — lonjakan harga, deviasi antar-wilayah, supply shortage."},
+    {"name": "insights", "description": "Narasi insight auto-generated untuk dashboard (highlight harian/mingguan)."},
+    {"name": "intelligence", "description": "Endpoint composite untuk dashboard intel — gabungan forecast + risk + driver dalam satu payload."},
+    {"name": "recommendations", "description": "Rekomendasi aksi (intervensi pasar / pengadaan) berdasarkan risk score dan supply chain index."},
+    {"name": "ai", "description": "AI context endpoints — narasi & ringkasan natural-language siap untuk LLM downstream."},
+
+    # ── User-facing (auth required) ──────────────────────────
+    {"name": "auth", "description": "Sign-in flow via Firebase. Tukar Firebase ID token dengan session user di Postgres."},
+    {"name": "users", "description": "Profil user, role management. Endpoint `/admin/list` & `/admin/stats` butuh role ADMIN."},
+    {"name": "reports", "description": "Laporan harga crowdsourcing (`price_reports`). Workflow: submit → validation pipeline → APPROVED/FLAGGED/REJECTED."},
+    {"name": "notifications", "description": "Notifikasi user (alert harga, badge, status laporan)."},
+    {"name": "gamification", "description": "Sistem poin, streak, dan badge untuk kontributor."},
+
+    # ── Admin & internal ─────────────────────────────────────
     {
-        "name": "health",
-        "description": "Health check endpoint untuk monitoring dan Docker healthcheck.",
+        "name": "admin-models",
+        "description": (
+            "Model registry — list, register, promote ke active. Wajib role "
+            "ADMIN atau GOVERNMENT_ANALYST. Promosi mengaktifkan satu model "
+            "per slot `(model_type, target_type, horizon)`; versi yang sebelumnya "
+            "active otomatis dinonaktifkan."
+        ),
     },
     {
-        "name": "analytics",
-        "description": "Kalkulasi harga, volatilitas, risk score, dan ranking komoditas/wilayah.",
-    },
-    {
-        "name": "alerts",
-        "description": "Sistem peringatan dini — deteksi lonjakan harga abnormal.",
-    },
-    {
-        "name": "insights",
-        "description": "Ringkasan analitik otomatis (harian/mingguan).",
-    },
-    {
-        "name": "forecast",
-        "description": "Prediksi harga komoditas menggunakan model Prophet.",
-    },
-    {
-        "name": "drivers",
-        "description": "Analisis faktor penggerak perubahan harga (cuaca, energi, supply).",
+        "name": "internal",
+        "description": (
+            "Endpoint service-to-service (dipanggil ml-gateway / worker). Tidak "
+            "ada autentikasi — diasumsikan hanya reachable via ClusterIP / "
+            "internal network. Jangan expose ke ingress."
+        ),
     },
 ]
 
@@ -120,18 +172,34 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="INFLASI Analytics API",
+    title="INFLASI API",
+    summary="Food-inflation monitoring + forecasting backend (FastAPI + TimescaleDB + ml-gateway).",
     description=DESCRIPTION,
-    version="0.1.0",
+    version="0.2.0",  # v2 quantile forecast + model_registry + dim_market
     openapi_tags=tags_metadata,
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    swagger_ui_parameters={
+        "docExpansion": "none",       # tutup semua tag by default — daftar tag panjang
+        "defaultModelsExpandDepth": 1,
+        "persistAuthorization": True,  # token bertahan setelah refresh
+        "tryItOutEnabled": True,
+        "filter": True,                # search bar di Swagger UI
+    },
+    servers=[
+        {"url": "/", "description": "Server saat ini (relative)"},
+        {"url": "http://localhost:8000", "description": "Local dev"},
+        {"url": "https://api.inflasi.id", "description": "Production"},
+    ],
     contact={
         "name": "INFLASI Team",
         "url": "https://inflasi.id",
+        "email": "team@inflasi.id",
     },
     license_info={
         "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
     },
 )
 

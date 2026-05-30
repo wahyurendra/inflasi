@@ -242,7 +242,7 @@ class DriverAnalyzer:
                 SELECT price, change_pct
                 FROM ext_commodity_price
                 WHERE commodity = :commodity
-                ORDER BY ABS(periode - :tanggal::date)
+                ORDER BY ABS(periode - CAST(:tanggal AS DATE))
                 LIMIT 1
             """),
             {"commodity": global_name, "tanggal": tanggal},
@@ -263,7 +263,7 @@ class DriverAnalyzer:
             text("""
                 SELECT gscpi
                 FROM ext_supply_chain_index
-                ORDER BY ABS(periode - :tanggal::date)
+                ORDER BY ABS(periode - CAST(:tanggal AS DATE))
                 LIMIT 1
             """),
             {"tanggal": tanggal},

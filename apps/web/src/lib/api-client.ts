@@ -40,6 +40,12 @@ async function request<T = unknown>(
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
     signal: AbortSignal.timeout(options.timeout ?? TIMEOUT_MS),
+    // Next.js App Router caches GET fetches by default. Our BFF is a thin
+    // proxy in front of live, mutable analytics data — caching at the
+    // network layer hides backend changes (e.g. stale null after a data
+    // fix). React Query owns caching on the client; the BFF must always
+    // hit the upstream so dev/data fixes propagate.
+    cache: "no-store",
   });
 
   if (!resp.ok) {

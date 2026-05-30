@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { apiClient } from "@/lib/api-client";
 
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const anthropic = new Anthropic();
 
 const SYSTEM_PROMPT = `Kamu adalah asisten analisis inflasi pangan Indonesia bernama INFLASI AI.

@@ -41,7 +41,8 @@ kubectl create secret generic inflasi-minio-secret -n default \
 kubectl create secret generic inflasi-secret -n default \
   --from-literal=ANALYTICS_DATABASE_URL='postgresql+asyncpg://inflasi:<pw>@inflasi-pg:5432/inflasi' \
   --from-literal=REDIS_URL='redis://inflasi-redis:6379/0' \
-  --from-literal=BPS_API_KEY='' --from-literal=EIA_API_KEY=''
+  --from-literal=BPS_API_KEY='' --from-literal=EIA_API_KEY='' \
+  --from-literal=OPENAI_API_KEY=''   # daily blog generator (blank → template fallback)
 kubectl create secret generic inflasi-firebase-sa -n default \
   --from-file=firebase-sa.json=./firebase-service-account.json
 

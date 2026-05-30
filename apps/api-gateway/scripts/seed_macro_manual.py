@@ -125,20 +125,27 @@ async def seed(
     # BI Rate has no dedicated column in `fact_macro_driver` today. Surface it
     # as an `analytics_insights` row so the operator can see what's been seeded
     # — replace this once the schema gains a `bi_rate` field natively.
+    # Note: asyncpg doesn't auto-encode dict → jsonb via raw text(), so we cast
+    # explicitly with `::jsonb` and pass a JSON-encoded string.
+    import json
+
     latest_bi = max((r["tanggal"], r["bi_rate"]) for r in rows if r["bi_rate"] is not None)
+    snapshot = json.dumps({
+        "history": [
+            {"date": d.isoformat(), "bi_rate": r} for d, r in BI_RATE_HISTORY
+        ],
+    })
     await db.execute(
         text("""
             INSERT INTO analytics_insights (tanggal, tipe, judul, konten, data_snapshot)
             VALUES (:tanggal, 'macro_seed', 'BI Rate seed (manual)',
-                    :konten, :snapshot)
+                    :konten, CAST(:snapshot AS JSONB))
             ON CONFLICT DO NOTHING
         """),
         {
             "tanggal": latest_bi[0],
             "konten": f"BI Rate per {latest_bi[0].isoformat()} = {latest_bi[1]}%",
-            "snapshot": {"history": [
-                {"date": d.isoformat(), "bi_rate": r} for d, r in BI_RATE_HISTORY
-            ]},
+            "snapshot": snapshot,
         },
     )
     await db.commit()

@@ -51,7 +51,7 @@ interface AdminUser {
   role: string;
   isActive: boolean;
   createdAt: string;
-  _count: { priceReports: number };
+  _count?: { priceReports?: number };
 }
 
 export default function AdminPage() {
@@ -213,7 +213,7 @@ export default function AdminPage() {
                       {roleLabels[user.role] || user.role}
                     </Badge>
                   </td>
-                  <td className="p-2 text-center">{user._count.priceReports}</td>
+                  <td className="p-2 text-center">{user._count?.priceReports ?? 0}</td>
                   <td className="p-2 text-center">
                     <Badge variant={user.isActive ? "default" : "secondary"}>
                       {user.isActive ? "Aktif" : "Nonaktif"}

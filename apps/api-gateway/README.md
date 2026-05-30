@@ -24,7 +24,8 @@ inflasi-api/
 │   │   ├── alerts.py         # Alert management
 │   │   ├── insights.py       # Insight generation
 │   │   ├── forecast.py       # Price forecasting
-│   │   └── drivers.py        # Driver analysis
+│   │   ├── drivers.py        # Driver analysis
+│   │   └── blog.py           # Auto-generated blog (list / detail / generate)
 │   ├── etl/pipelines/        # ETL pipelines
 │   │   ├── pihps_bi.py       # Harga pangan harian (Bank Indonesia)
 │   │   ├── exchange_rate.py  # Kurs USD/IDR (ECB)
@@ -39,6 +40,7 @@ inflasi-api/
 │       ├── anomaly_detector.py
 │       ├── forecast_engine.py
 │       ├── insight_generator.py
+│       ├── blog_generator.py   # Daily analytics → ≥1500-word blog article (OpenAI + fallback)
 │       ├── price_calculator.py
 │       ├── ranking.py
 │       ├── driver_analyzer.py
@@ -67,6 +69,9 @@ cp .env.example .env
 | `EIA_API_KEY` | US Energy Information Administration API key | Tidak (ada fallback) |
 | `BPS_API_KEY` | Badan Pusat Statistik API key | Tidak |
 | `ANTHROPIC_API_KEY` | Claude AI API key | Tidak |
+| `OPENAI_API_KEY` | OpenAI key untuk generator blog harian (kosong → fallback template) | Tidak |
+| `OPENAI_MODEL` | Model OpenAI untuk blog (default `gpt-5.4-mini`) | Tidak |
+| `BLOG_GENERATION_ENABLED` | Aktifkan generasi blog di batch analitik (default `true`) | Tidak |
 
 ### Local Development
 
@@ -128,6 +133,9 @@ Base URL: `http://localhost:8000`
 | GET | `/api/forecast/...` | Prediksi harga |
 | GET | `/api/insights/...` | Insight harian |
 | GET | `/api/drivers/...` | Analisis driver |
+| GET | `/api/blog` | Daftar artikel blog terbit |
+| GET | `/api/blog/{slug}` | Detail artikel blog |
+| POST | `/api/blog/generate` | Generate artikel manual (default hari ini) |
 
 ## ETL Pipelines
 
@@ -152,7 +160,30 @@ Jadwal otomatis (WIB):
 | 10:30 | PIHPS BI (pagi) | Harga pangan harian |
 | 13:30 | PIHPS BI (siang) | Harga pangan harian |
 | 14:00 | BMKG Weather | Data cuaca |
-| 17:30 | Analytics | Risk scores, Alerts, Anomalies, Insights |
+| 17:30 | Analytics | Risk scores, Alerts, Anomalies, Insights, **Blog harian** |
+
+## Blog Otomatis
+
+Setiap batch analitik harian (`run_analytics.py`, dijalankan oleh CronJob `inflasi-analytics`)
+menghasilkan satu artikel blog publik dari data hari itu — di-hook setelah langkah insight dan
+diisolasi dengan `try/except` agar kegagalan tidak menggagalkan batch.
+
+- **Sumber narasi:** `BlogGenerator` (`app/services/blog_generator.py`) mengumpulkan headline
+  inflasi, komoditas naik/turun, provinsi tertekan, alert aktif, driver komoditas teratas, serta
+  konteks makro (kurs, FAO, GSCPI) dan volatilitas (CV 30 hari).
+- **Penulisan:** OpenAI (`OPENAI_MODEL`, default `gpt-5.4-mini`) menulis artikel Markdown
+  **minimal 1500 kata** dengan aturan anti-halusinasi (hanya angka dari data). Jika `OPENAI_API_KEY`
+  kosong atau panggilan gagal, jatuh ke **template deterministik** yang tetap komprehensif.
+- **Referensi:** tiap artikel diakhiri bagian `## Referensi` berisi sumber resmi (PIHPS BI, BPS,
+  BMKG, JISDOR, FAO, Fed NY GSCPI, Bapanas) yang dipilih dari sinyal yang benar-benar dipakai.
+- **Penyimpanan:** tabel `content_blog_posts` (migrasi `0010`), satu baris per `(tanggal, tipe)`
+  via upsert idempoten. Status `published` langsung tampil di `/api/blog`.
+
+```bash
+# Generate manual untuk tanggal tertentu (atau default hari ini)
+python run_analytics.py 2026-05-29          # bagian dari batch lengkap
+curl -X POST 'http://localhost:8001/api/blog/generate?tanggal=2026-05-29'
+```
 
 ## Sumber Data
 

@@ -25,7 +25,10 @@ class ExchangeRatePipeline:
         self.db = db
         self.end_date = end_date or date.today()
         self.start_date = start_date or (self.end_date - timedelta(days=30))
-        self.client = httpx.AsyncClient(timeout=30.0)
+        # follow_redirects: Frankfurter recently moved to a redirect-only host
+        # (`api.frankfurter.app` 301 → `api.frankfurter.dev`); without this the
+        # client gets a 301 body and returns 0 rows.
+        self.client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
 
     async def run(self) -> int:
         logger.info(f"[{self.name}] Fetching {self.start_date} to {self.end_date}")

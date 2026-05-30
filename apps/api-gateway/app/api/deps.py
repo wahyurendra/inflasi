@@ -6,14 +6,19 @@ linking an existing email account on first sign-in, or creating a REPORTER). App
 specific authorization (role, region) lives in Postgres, not in the token.
 """
 
+import logging
+
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.firebase import verify_id_token
+from app.core.ids import new_id
 from app.database import get_db
 from app.models.tables import User
+
+logger = logging.getLogger("inflasi-api")
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -27,6 +32,9 @@ async def _user_from_token(
     try:
         decoded = verify_id_token(credentials.credentials)
     except Exception:
+        # Don't swallow silently — a misconfigured Firebase Admin (wrong project, no
+        # credentials, clock skew) shows up here as a 401 with no DB row created.
+        logger.warning("Firebase ID-token verification failed", exc_info=True)
         return None
 
     uid = decoded.get("uid") or decoded.get("user_id")
@@ -43,9 +51,8 @@ async def _user_from_token(
             user.firebase_uid = uid
 
     if user is None:
-        import cuid2
         user = User(
-            id=cuid2.cuid_wrapper(),
+            id=new_id(),
             firebase_uid=uid,
             email=email or f"{uid}@firebase.local",
             name=decoded.get("name"),

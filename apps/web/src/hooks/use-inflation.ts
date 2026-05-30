@@ -23,3 +23,23 @@ export function useHeadlineInflation() {
     },
   });
 }
+
+export interface InflationSeriesPoint {
+  periode: string;
+  mtm: number | null;
+  ytd: number | null;
+  yoy: number | null;
+  ihk: number | null;
+}
+
+export function useInflationSeries(months = 12) {
+  return useQuery<{ data: InflationSeriesPoint[] }>({
+    queryKey: ["inflation", "series", months],
+    queryFn: async () => {
+      const res = await fetch(`/api/inflation/series?months=${months}`);
+      if (!res.ok) throw new Error("Failed to fetch inflation series");
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}

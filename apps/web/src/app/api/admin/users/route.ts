@@ -1,58 +1,35 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff, withAuth } from "@/lib/api-auth";
 
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+// ADMIN role enforced server-side by the api-gateway.
 export async function GET(request: NextRequest) {
-  try {
-    const authToken = request.headers.get("authorization") ?? undefined;
-    if (!authToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    // ADMIN role is enforced by the api-gateway.
-
+  return runBff(() => {
+    const authToken = withAuth(request);
     const searchParams = request.nextUrl.searchParams;
-    const params: Record<string, string> = {};
-    const page = searchParams.get("page") || "1";
-    const limit = searchParams.get("limit") || "20";
+    const params: Record<string, string> = {
+      page: searchParams.get("page") || "1",
+      limit: searchParams.get("limit") || "20",
+    };
     const role = searchParams.get("role");
-
-    params.page = page;
-    params.limit = limit;
     if (role) params.role = role;
-
-    const opts = { authToken };
-    const data = await apiClient.get("/users/admin/list", params, opts);
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error("Admin users error:", error);
-    return NextResponse.json({ data: [], total: 0, page: 1, limit: 20, error: "Database error" }, { status: 500 });
-  }
+    return apiClient.get("/users/admin/list", params, { authToken });
+  });
 }
 
-export async function PATCH(request: Request) {
-  try {
-    const authToken = request.headers.get("authorization") ?? undefined;
-    if (!authToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    // ADMIN role is enforced by the api-gateway.
-
-    const body = await request.json();
-    const { userId, role, isActive } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
-    }
-
+export async function PATCH(request: NextRequest) {
+  return runBff(async () => {
+    const authToken = withAuth(request);
+    const { userId, role, isActive } = await request.json();
+    if (!userId) throw new Error("userId is required (400)");
     const updateData: Record<string, unknown> = {};
     if (role) updateData.role = role;
     if (typeof isActive === "boolean") updateData.isActive = isActive;
-
-    const opts = { authToken };
-    const data = await apiClient.patch("/users/admin/" + userId, updateData, opts);
-
-    return NextResponse.json({ data });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+    return apiClient.patch(`/users/admin/${userId}`, updateData, { authToken });
+  });
 }

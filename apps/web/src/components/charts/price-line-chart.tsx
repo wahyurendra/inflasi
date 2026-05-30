@@ -67,7 +67,7 @@ function CustomTooltip({
         }
         if (p.dataKey === "yhat" && p.value) {
           return (
-            <p key="forecast" className="text-sm font-semibold text-orange-600">
+            <p key="forecast" className="text-sm font-semibold text-risk-high">
               Forecast: {formatRupiah(p.value)}
             </p>
           );
@@ -82,7 +82,7 @@ export function PriceLineChart({
   data,
   forecastData,
   showForecast = true,
-  color = "#2563eb",
+  color = "hsl(var(--primary))",
   height = 280,
   showGrid = true,
 }: PriceLineChartProps) {
@@ -141,33 +141,39 @@ export function PriceLineChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={mergedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-        {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />}
+        {showGrid && (
+          <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+        )}
         <XAxis
           dataKey="tanggal"
           tickFormatter={formatDate}
-          tick={{ fontSize: 11, fill: "#9ca3af" }}
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
           tickLine={false}
-          axisLine={{ stroke: "#e5e7eb" }}
+          axisLine={{ stroke: "hsl(var(--border))" }}
           interval="preserveStartEnd"
         />
         <YAxis
           tickFormatter={(v) => `${(v / 1000).toFixed(0)}rb`}
-          tick={{ fontSize: 11, fill: "#9ca3af" }}
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
           tickLine={false}
           axisLine={false}
           domain={[minVal - padding, maxVal + padding]}
           width={50}
         />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip
+          content={<CustomTooltip />}
+          cursor={{ stroke: "hsl(var(--accent))", strokeWidth: 1 }}
+        />
         <ReferenceLine
           y={avgPrice}
-          stroke="#d1d5db"
+          stroke="hsl(var(--muted-foreground))"
+          strokeOpacity={0.4}
           strokeDasharray="4 4"
           label={{
-            value: `Rata-rata: ${formatRupiah(Math.round(avgPrice))}`,
+            value: `Rata-rata ${formatRupiah(Math.round(avgPrice))}`,
             position: "right",
-            fontSize: 10,
-            fill: "#9ca3af",
+            fontSize: 9,
+            fill: "hsl(var(--muted-foreground))",
           }}
         />
 
@@ -175,13 +181,14 @@ export function PriceLineChart({
         {hasForecast && (
           <ReferenceLine
             x={lastHistoricalDate}
-            stroke="#f97316"
+            stroke="hsl(var(--risk-high))"
             strokeDasharray="4 4"
+            strokeOpacity={0.6}
             label={{
               value: "Forecast →",
               position: "top",
-              fontSize: 10,
-              fill: "#f97316",
+              fontSize: 9,
+              fill: "hsl(var(--risk-high))",
             }}
           />
         )}
@@ -192,8 +199,8 @@ export function PriceLineChart({
             type="monotone"
             dataKey="yhatUpper"
             stroke="none"
-            fill="#fed7aa"
-            fillOpacity={0.4}
+            fill="hsl(var(--risk-high))"
+            fillOpacity={0.15}
           />
         )}
         {hasForecast && (
@@ -222,11 +229,16 @@ export function PriceLineChart({
           <Line
             type="monotone"
             dataKey="yhat"
-            stroke="#f97316"
+            stroke="hsl(var(--risk-high))"
             strokeWidth={2}
             strokeDasharray="6 3"
             dot={false}
-            activeDot={{ r: 4, stroke: "#f97316", strokeWidth: 2, fill: "hsl(var(--card))" }}
+            activeDot={{
+              r: 4,
+              stroke: "hsl(var(--risk-high))",
+              strokeWidth: 2,
+              fill: "hsl(var(--card))",
+            }}
             connectNulls={false}
           />
         )}

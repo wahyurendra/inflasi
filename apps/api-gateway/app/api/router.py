@@ -6,7 +6,7 @@ from app.api.endpoints import (
     regions, commodities, markets, prices, inflation, global_signals,
     intelligence, gamification, health_db,
     auth_api, users, reports, notifications, ai_context,
-    recommendations,
+    recommendations, blog,
 )
 
 router = APIRouter()
@@ -39,6 +39,9 @@ router.include_router(gamification.router, prefix="/gamification", tags=["gamifi
 
 # New — recommendations
 router.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])
+
+# New — blog (auto-generated daily articles, public/SEO)
+router.include_router(blog.router, prefix="/blog", tags=["blog"])
 
 # New — AI
 router.include_router(ai_context.router, prefix="/ai", tags=["ai"])

@@ -1,13 +1,10 @@
-import { NextResponse } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff } from "@/lib/api-auth";
+
+// Live analytics — no static optimisation, no route-handler cache.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
-  try {
-    const result = await apiClient.get("/inflation/headline");
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Inflation headline error:", error);
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
-  }
+  return runBff(() => apiClient.get("/inflation/headline"));
 }

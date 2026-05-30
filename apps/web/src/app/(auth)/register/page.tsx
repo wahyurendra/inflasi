@@ -39,7 +39,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUpEmail(name, email, password);
-      router.push("/");
+      router.push("/beranda");
       router.refresh();
     } catch (err) {
       const code = (err as { code?: string })?.code;
@@ -54,7 +54,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signInGoogle();
-      router.push("/");
+      router.push("/beranda");
       router.refresh();
     } catch {
       setError("Gagal mendaftar dengan Google");

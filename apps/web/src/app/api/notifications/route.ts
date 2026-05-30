@@ -1,41 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { runBff, withAuth } from "@/lib/api-auth";
+
+// BFF is a thin proxy over live analytics — disable Next.js route-handler
+// caching so backend/data fixes propagate without dev restarts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-  const authToken = request.headers.get("authorization") ?? undefined;
-  if (!authToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const params: Record<string, string> = {};
-  params.page = searchParams.get("page") || "1";
-  params.limit = searchParams.get("limit") || "20";
-
-  try {
-    const opts = { authToken };
-    const data = await apiClient.get("/notifications/", params, opts);
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ data: [], total: 0, page: 1, source: "mock" });
-  }
+  return runBff(() => {
+    const authToken = withAuth(request);
+    const { searchParams } = new URL(request.url);
+    const params: Record<string, string> = {
+      page: searchParams.get("page") || "1",
+      limit: searchParams.get("limit") || "20",
+    };
+    return apiClient.get("/notifications/", params, { authToken });
+  });
 }
 
-export async function PATCH(request: Request) {
-  const authToken = request.headers.get("authorization") ?? undefined;
-  if (!authToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await request.json();
-    const { ids } = body;
-
-    const opts = { authToken };
-    await apiClient.patch("/notifications/mark-read", { ids }, opts);
-
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Gagal memperbarui" }, { status: 500 });
-  }
+export async function PATCH(request: NextRequest) {
+  return runBff(async () => {
+    const authToken = withAuth(request);
+    const { ids } = await request.json();
+    await apiClient.patch("/notifications/mark-read", { ids }, { authToken });
+    return { success: true };
+  });
 }

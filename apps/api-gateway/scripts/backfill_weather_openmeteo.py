@@ -177,7 +177,7 @@ async def _list_regions(db: AsyncSession) -> list[tuple[int, str, float, float]]
 
 async def run(*, start: date, end: date, region_codes: list[str] | None = None) -> dict[str, int]:
     url = _resolve_url()
-    engine = create_async_engine(url, pool_recycle=300)
+    engine = create_async_engine(url, pool_recycle=300, pool_size=8, max_overflow=4)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     summary: dict[str, int] = {}
@@ -185,31 +185,39 @@ async def run(*, start: date, end: date, region_codes: list[str] | None = None) 
     try:
         async with factory() as db:
             regions = await _list_regions(db)
-            if region_codes:
-                wanted = set(region_codes)
-                regions = [r for r in regions if r[1] in wanted]
-            if not regions:
-                logger.warning("no regions found; seed dimensions first")
-                return {}
+        if region_codes:
+            wanted = set(region_codes)
+            regions = [r for r in regions if r[1] in wanted]
+        if not regions:
+            logger.warning("no regions found; seed dimensions first")
+            return {}
 
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                async def _one(region: tuple[int, str, float, float]) -> None:
-                    region_id, code, lat, lon = region
-                    async with sem:
-                        try:
-                            rows = await fetch_region(
-                                client, latitude=lat, longitude=lon,
-                                start=start, end=end,
-                            )
-                        except Exception:
-                            logger.exception("fetch failed: region=%s", code)
-                            summary[code] = 0
-                            return
-                    n = await _upsert(db, region_id=region_id, rows=rows)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async def _one(region: tuple[int, str, float, float]) -> None:
+                # One fresh session per region — sharing a single AsyncSession
+                # serializes upserts across all 35 regions, which on hypertables
+                # collapses throughput to a couple of regions per hour.
+                region_id, code, lat, lon = region
+                async with sem:
+                    try:
+                        rows = await fetch_region(
+                            client, latitude=lat, longitude=lon,
+                            start=start, end=end,
+                        )
+                    except Exception:
+                        logger.exception("fetch failed: region=%s", code)
+                        summary[code] = 0
+                        return
+                try:
+                    async with factory() as db_local:
+                        n = await _upsert(db_local, region_id=region_id, rows=rows)
                     summary[code] = n
                     logger.info("region=%s rows=%s", code, n)
+                except Exception:
+                    logger.exception("upsert failed: region=%s", code)
+                    summary[code] = 0
 
-                await asyncio.gather(*(_one(r) for r in regions))
+            await asyncio.gather(*(_one(r) for r in regions))
     finally:
         await engine.dispose()
     return summary

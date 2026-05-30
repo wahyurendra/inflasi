@@ -34,9 +34,9 @@ class AlertEngine:
             await self.db.execute(
                 text("""
                     INSERT INTO analytics_alerts
-                        (tanggal, region_id, commodity_id, alert_type, severity, judul, deskripsi, nilai_aktual, nilai_threshold)
+                        (tanggal, region_id, commodity_id, alert_type, severity, judul, deskripsi, nilai_aktual, nilai_threshold, is_active)
                     VALUES
-                        (:tanggal, :region_id, :commodity_id, :alert_type, :severity, :judul, :deskripsi, :nilai_aktual, :nilai_threshold)
+                        (:tanggal, :region_id, :commodity_id, :alert_type, :severity, :judul, :deskripsi, :nilai_aktual, :nilai_threshold, TRUE)
                     ON CONFLICT DO NOTHING
                 """),
                 alert,
