@@ -14,8 +14,13 @@ router = APIRouter()
 
 
 class CreateReportRequest(BaseModel):
-    commodityId: int
-    regionId: int
+    # Stable business keys (kode_komoditas / kode_wilayah). The serial PKs are not
+    # stable across re-seeds, so clients send the kode and we resolve the real id.
+    commodityKode: str | None = None
+    regionKode: str | None = None
+    # Legacy fallback — accepted only when the kode is absent.
+    commodityId: int | None = None
+    regionId: int | None = None
     harga: float
     satuan: str
     namaPasar: str
@@ -41,6 +46,54 @@ class DetectDuplicateRequest(BaseModel):
     commodityId: int
     regionId: int
     tanggal: str
+
+
+async def _resolve_commodity_id(
+    db: AsyncSession, kode: str | None, fallback_id: int | None
+) -> int:
+    """Resolve a commodity to its real PK by kode, returning a clean 400 if unknown.
+
+    Serial PKs are not stable across re-seeds, so the kode is the source of truth.
+    The integer fallback is kept only for legacy clients that still send an id.
+    """
+    if kode:
+        row = await db.execute(
+            select(DimCommodity.id).where(DimCommodity.kode_komoditas == kode)
+        )
+        resolved = row.scalar()
+        if resolved is None:
+            raise HTTPException(status_code=400, detail=f"Komoditas tidak dikenal: {kode}")
+        return resolved
+    if fallback_id is not None:
+        exists = await db.execute(
+            select(DimCommodity.id).where(DimCommodity.id == fallback_id)
+        )
+        if exists.scalar() is None:
+            raise HTTPException(status_code=400, detail=f"Komoditas tidak dikenal: id={fallback_id}")
+        return fallback_id
+    raise HTTPException(status_code=400, detail="commodityKode wajib diisi")
+
+
+async def _resolve_region_id(
+    db: AsyncSession, kode: str | None, fallback_id: int | None
+) -> int:
+    """Resolve a region to its real PK by kode_wilayah, with a clean 400 if unknown."""
+    if kode:
+        row = await db.execute(
+            select(DimRegion.id).where(DimRegion.kode_wilayah == kode)
+        )
+        resolved = row.scalar()
+        if resolved is None:
+            raise HTTPException(status_code=400, detail=f"Wilayah tidak dikenal: {kode}")
+        return resolved
+    if fallback_id is not None:
+        exists = await db.execute(
+            select(DimRegion.id).where(DimRegion.id == fallback_id)
+        )
+        if exists.scalar() is None:
+            raise HTTPException(status_code=400, detail=f"Wilayah tidak dikenal: id={fallback_id}")
+        return fallback_id
+    raise HTTPException(status_code=400, detail="regionKode wajib diisi")
 
 
 @router.get("/")
@@ -84,11 +137,14 @@ async def create_report(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    commodity_id = await _resolve_commodity_id(db, body.commodityKode, body.commodityId)
+    region_id = await _resolve_region_id(db, body.regionKode, body.regionId)
+
     report = PriceReport(
         id=new_id(),
         user_id=current_user["id"],
-        commodity_id=body.commodityId,
-        region_id=body.regionId,
+        commodity_id=commodity_id,
+        region_id=region_id,
         harga=body.harga,
         satuan=body.satuan,
         nama_pasar=body.namaPasar,

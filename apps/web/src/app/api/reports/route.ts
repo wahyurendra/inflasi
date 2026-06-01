@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
   return runBff(async () => {
     const authToken = withAuth(request);
     const body = await request.json();
-    const { commodityId, regionId, harga, satuan, namaPasar, tanggal } = body;
-    if (!commodityId || !regionId || !harga || !satuan || !namaPasar || !tanggal) {
+    const { commodityKode, regionKode, harga, satuan, namaPasar, tanggal } = body;
+    if (!commodityKode || !regionKode || !harga || !satuan || !namaPasar || !tanggal) {
       throw new Error("Data tidak lengkap (400)");
     }
     return apiClient.post("/reports/", body, { authToken });
