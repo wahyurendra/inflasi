@@ -82,18 +82,18 @@ export default function LaporHargaPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const commodityIndex = MVP_COMMODITIES.findIndex((c) => c.kode === commodityId);
-    const regionIndex = REGIONS.findIndex((r) => r.kode === regionId);
+    const commodity = MVP_COMMODITIES.find((c) => c.kode === commodityId);
+    const region = REGIONS.find((r) => r.kode === regionId);
 
-    if (commodityIndex === -1 || regionIndex === -1) {
+    if (!commodity || !region) {
       toast({ title: "Pilih komoditas dan wilayah", variant: "destructive" });
       return;
     }
 
     try {
       await submitReport.mutateAsync({
-        commodityId: commodityIndex + 1,
-        regionId: regionIndex + 1,
+        commodityKode: commodity.kode,
+        regionKode: region.kode,
         harga: parseFloat(harga),
         satuan,
         namaPasar,
