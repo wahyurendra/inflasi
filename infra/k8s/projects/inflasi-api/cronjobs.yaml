@@ -26,7 +26,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "global"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -57,7 +57,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "pihps"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -88,7 +88,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "pihps"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -119,7 +119,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "bmkg"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -150,7 +150,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: analytics
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "run_analytics.py"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -181,7 +181,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: batch-forecast
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "-m", "app.tasks.batch_forecast", "--horizon", "7,14,30"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -212,7 +212,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: evaluate-forecasts
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "-m", "app.tasks.evaluate_forecasts", "--window-days", "30"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -243,7 +243,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: etl
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "run_etl.py", "--pipeline", "bps_inflation"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
@@ -274,7 +274,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: build-monthly
-              image: ghcr.io/wahyurendra/inflasi-api:3e41fc93d5f7
+              image: ghcr.io/wahyurendra/inflasi-api:04700b5c2f75
               imagePullPolicy: Always
               command: ["python", "-m", "app.tasks.build_monthly_features"]
               envFrom: [{ secretRef: { name: inflasi-secret } }]
