@@ -121,7 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await signInWithPopup(auth, googleProvider);
       } catch (error) {
         console.error("Google login error:", error);
-        alert(`${error.code}\n${error.message}`);
+        if (error instanceof Error) {
+          alert(`${(error as any).code}\n${error.message}`);
+        }
       }
     },
     resetPassword: async (email) => {
