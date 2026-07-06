@@ -117,7 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     signInGoogle: async () => {
-      await signInWithPopup(auth, googleProvider);
+      try {
+        await signInWithPopup(auth, googleProvider);
+      } catch (error) {
+        console.error("Google login error:", error);
+        alert(`${error.code}\n${error.message}`);
+      }
     },
     resetPassword: async (email) => {
       await sendPasswordResetEmail(auth, email);
