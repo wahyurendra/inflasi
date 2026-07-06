@@ -105,6 +105,12 @@
     --risk-high: 35 90% 55%;
     --risk-critical: 0 75% 50%;
 
+    /* Warna seri chart — terpisah dari warna risiko (yang direservasi untuk
+       status). Pasangan hijau/violet tervalidasi (lightness band, chroma,
+       CVD, kontras) per permukaan; jangan ganti tanpa validasi ulang. */
+    --chart-history: 150 55% 38%;
+    --chart-forecast: 262 83% 58%;
+
     color: hsl(var(--foreground));
     background: hsl(var(--background));
     font-family: "Inter", sans-serif;
@@ -128,6 +134,9 @@
     --accent-foreground: 210 20% 96%;
     --border: 222 20% 22%;
     --input: 222 20% 22%;
+
+    --chart-history: 149 57% 41%;
+    --chart-forecast: 258 73% 66%;
   }
 
   .landing-theme {

@@ -305,7 +305,7 @@ export default function KomoditasPage() {
             onChange={(e) => setShowForecast(e.target.checked)}
             className="rounded border-input"
           />
-          Tampilkan Forecast 14 Hari
+          Tampilkan Proyeksi 14 Hari
         </label>
       </div>
 
@@ -355,12 +355,12 @@ export default function KomoditasPage() {
           {showForecast && (
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1">
-                <span className="h-0.5 w-3 bg-primary rounded" />
+                <span className="h-0.5 w-3 rounded" style={{ background: "hsl(var(--chart-history))" }} />
                 Historis
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-0.5 w-3 border-t border-dashed border-risk-high rounded" />
-                Forecast
+                <span className="h-0 w-3 border-t border-dashed" style={{ borderColor: "hsl(var(--chart-forecast))" }} />
+                Proyeksi
               </span>
             </div>
           )}
@@ -372,6 +372,7 @@ export default function KomoditasPage() {
             data={chartData}
             forecastData={forecastData?.data}
             showForecast={showForecast}
+            forecastDays={14}
           />
         ) : (
           <div className="h-[280px] flex flex-col items-center justify-center border border-dashed rounded text-center">
