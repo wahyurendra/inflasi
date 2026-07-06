@@ -51,15 +51,30 @@ async def _user_from_token(
             user.firebase_uid = uid
 
     if user is None:
-        user = User(
-            id=new_id(),
-            firebase_uid=uid,
-            email=email or f"{uid}@firebase.local",
-            name=decoded.get("name"),
-            image=decoded.get("picture"),
-            role="REPORTER",
+        # Use an upsert so concurrent first-sign-in requests (common when the
+        # frontend fires multiple API calls simultaneously) don't race on the
+        # unique email constraint and throw IntegrityError.
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        stmt = (
+            pg_insert(User)
+            .values(
+                id=new_id(),
+                firebase_uid=uid,
+                email=email or f"{uid}@firebase.local",
+                name=decoded.get("name"),
+                image=decoded.get("picture"),
+                role="REPORTER",
+            )
+            .on_conflict_do_update(
+                index_elements=["email"],
+                set_={"firebase_uid": uid},
+            )
+            .returning(User)
         )
-        db.add(user)
+        await db.execute(stmt)
+        await db.commit()
+        user = (await db.execute(select(User).where(User.firebase_uid == uid))).scalar()
+        return user
 
     await db.commit()
     await db.refresh(user)
