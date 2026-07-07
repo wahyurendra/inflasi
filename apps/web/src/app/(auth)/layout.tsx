@@ -1,7 +1,8 @@
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowLeft, Bell, LineChart, Map } from "lucide-react";
 import { Providers } from "@/components/providers";
+import { PageTransition } from "@/components/page-transition";
+import { TransitionLink } from "@/components/transition-link";
 
 const highlights = [
   {
@@ -28,7 +29,7 @@ export default function AuthLayout({
 }) {
   return (
     <Providers>
-      <div className="min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
+      <PageTransition className="min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
         {/* Panel brand — nuansa landing, hanya desktop. Gradien statis saja. */}
         <aside className="landing-theme relative hidden flex-col justify-between overflow-hidden p-10 lg:flex xl:p-14">
           <div
@@ -43,10 +44,10 @@ export default function AuthLayout({
           />
           <div aria-hidden className="absolute inset-0 landing-grid opacity-50 [animation:none]" />
 
-          <Link href="/welcome" className="relative z-10 flex w-fit items-center gap-3">
+          <TransitionLink href="/welcome" className="relative z-10 flex w-fit items-center gap-3">
             <Image src="/logo.svg" alt="INFLASI ID" width={40} height={40} className="h-10 w-10 rounded-full" />
             <span className="text-xl font-bold tracking-tight text-foreground">inflasi.id</span>
-          </Link>
+          </TransitionLink>
 
           <div className="relative z-10 max-w-md">
             <h1 className="text-balance text-3xl font-medium leading-tight tracking-[-1px] text-foreground xl:text-4xl">
@@ -74,13 +75,13 @@ export default function AuthLayout({
 
         {/* Sisi form */}
         <main className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 sm:p-8">
-          <Link
+          <TransitionLink
             href="/welcome"
             className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground sm:left-6 sm:top-6"
           >
             <ArrowLeft className="h-4 w-4" />
             Beranda
-          </Link>
+          </TransitionLink>
 
           <div className="w-full max-w-md">
             {/* Header ringkas untuk mobile (panel brand tersembunyi) */}
@@ -94,7 +95,7 @@ export default function AuthLayout({
             {children}
           </div>
         </main>
-      </div>
+      </PageTransition>
     </Providers>
   );
 }
