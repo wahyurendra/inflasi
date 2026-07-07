@@ -35,6 +35,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TransitionLink } from "@/components/transition-link";
 import { cn } from "@/lib/utils";
 
 type Status = "stable" | "watch" | "spike";
@@ -250,7 +251,7 @@ export function Navbar() {
             Jadi Mitra
           </Link>
           <Button asChild className="hidden rounded-full bg-secondary px-5 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90 sm:inline-flex">
-            <Link href="/login">Buka Dashboard</Link>
+            <TransitionLink href="/login">Buka Dashboard</TransitionLink>
           </Button>
           <button
             type="button"
@@ -287,7 +288,7 @@ export function Navbar() {
             </Link>
           </div>
           <Button asChild className="mt-3 w-full rounded-full bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-secondary/90">
-            <Link href="/login" onClick={() => setOpen(false)}>Buka Dashboard</Link>
+            <TransitionLink href="/login" onClick={() => setOpen(false)}>Buka Dashboard</TransitionLink>
           </Button>
         </div>
       )}
@@ -539,7 +540,7 @@ export function Hero() {
               className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start"
             >
               <Button asChild className="h-12 rounded-full bg-secondary px-8 text-base font-semibold text-secondary-foreground transition-transform hover:scale-[1.02] hover:bg-secondary/90 active:scale-[0.98]">
-                <Link href="/login">Jelajahi Dashboard <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <TransitionLink href="/login">Jelajahi Dashboard <ArrowRight className="ml-2 h-4 w-4" /></TransitionLink>
               </Button>
               <Button asChild variant="outline" className="h-12 rounded-full border-white/15 bg-white/5 px-8 text-base font-medium text-foreground hover:bg-white/10 hover:text-foreground">
                 <Link href="#heatmap">Lihat Peta Nasional</Link>
@@ -842,7 +843,7 @@ export function HeatmapSection() {
               38 provinsi dipantau · 20 alert aktif terdeteksi
             </div>
             <Button asChild variant="outline" className="mt-4 w-full rounded-full border-white/15 bg-white/5 text-sm text-foreground hover:bg-white/10 hover:text-foreground">
-              <Link href="/login">Buka Peta Interaktif <ArrowUpRight className="ml-1.5 h-4 w-4" /></Link>
+              <TransitionLink href="/login">Buka Peta Interaktif <ArrowUpRight className="ml-1.5 h-4 w-4" /></TransitionLink>
             </Button>
           </FadeIn>
         </div>
@@ -1134,7 +1135,7 @@ export function CTASection() {
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild className="h-12 rounded-full bg-secondary px-8 text-base font-semibold text-secondary-foreground hover:bg-secondary/90">
-            <Link href="/login">Buka Dashboard</Link>
+            <TransitionLink href="/login">Buka Dashboard</TransitionLink>
           </Button>
           <Button asChild variant="outline" className="h-12 rounded-full border-white/15 bg-white/5 px-8 text-base text-foreground hover:bg-white/10 hover:text-foreground">
             <Link href="/partner">Jadi Mitra Kami</Link>
