@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
 import { optionalAuth, runBff, withAuth } from "@/lib/api-auth";
+import { toBackendCommodity, toBackendRegion } from "@/lib/region-mapping";
 
 // BFF is a thin proxy over live analytics — disable Next.js route-handler
 // caching so backend/data fixes propagate without dev restarts.
@@ -32,6 +33,11 @@ export async function POST(request: NextRequest) {
     if (!commodityKode || !regionKode || !harga || !satuan || !namaPasar || !tanggal) {
       throw new Error("Data tidak lengkap (400)");
     }
-    return apiClient.post("/reports/", body, { authToken });
+    const backendBody = {
+      ...body,
+      commodityKode: toBackendCommodity(commodityKode),
+      regionKode: toBackendRegion(regionKode),
+    };
+    return apiClient.post("/reports/", backendBody, { authToken });
   });
 }
