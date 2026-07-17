@@ -17,7 +17,7 @@ import { useSubmitReport } from "@/hooks/use-reports";
 import { useToast } from "@/hooks/use-toast";
 import { MVP_COMMODITIES, REGIONS } from "@/lib/constants";
 import { getRegenciesByProvince, getDistrictsByRegency } from "@/lib/wilayah";
-import { Camera, Send, X } from "lucide-react";
+import { Camera, Send, X, MapPin, LocateFixed, RefreshCw } from "lucide-react";
 
 export default function LaporHargaPage() {
   const router = useRouter();
@@ -39,6 +39,8 @@ export default function LaporHargaPage() {
   const [catatan, setCatatan] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"idle" | "loading" | "error">("idle");
 
   // Auto-set satuan when commodity changes
   const handleCommodityChange = (value: string) => {
@@ -74,6 +76,36 @@ export default function LaporHargaPage() {
     const district = kecamatanOptions.find((d) => d.code === value);
     setKecamatanKode(value);
     setKecamatan(district?.name ?? "");
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocation tidak didukung browser ini", variant: "destructive" });
+      return;
+    }
+
+    setGpsStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGpsLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+        setGpsStatus("idle");
+      },
+      (error) => {
+        setGpsStatus("error");
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? "Izin lokasi ditolak. Aktifkan izin lokasi untuk browser ini."
+            : error.code === error.TIMEOUT
+            ? "Waktu deteksi lokasi habis. Coba lagi."
+            : "Lokasi tidak dapat dideteksi. Coba lagi.";
+        toast({ title: "Gagal mendapatkan lokasi", description: message, variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,6 +161,8 @@ export default function LaporHargaPage() {
         namaPasar,
         kota,
         kecamatan,
+        latitude: gpsLocation?.lat,
+        longitude: gpsLocation?.lng,
         tanggal,
         catatan: catatan || undefined,
         photoUrls,
@@ -270,6 +304,54 @@ export default function LaporHargaPage() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        {/* GPS Location */}
+        <div className="space-y-2">
+          <Label>Lokasi GPS (Opsional)</Label>
+          {gpsLocation ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-mono text-xs">
+                    {gpsLocation.lat.toFixed(6)}, {gpsLocation.lng.toFixed(6)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Akurasi ±{Math.round(gpsLocation.accuracy)}m ·{" "}
+                    <a
+                      href={`https://www.google.com/maps?q=${gpsLocation.lat},${gpsLocation.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-foreground"
+                    >
+                      Buka di peta
+                    </a>
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleGetLocation}
+                disabled={gpsStatus === "loading"}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${gpsStatus === "loading" ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGetLocation}
+              disabled={gpsStatus === "loading"}
+              className="w-full"
+            >
+              <LocateFixed className={`h-4 w-4 mr-2 ${gpsStatus === "loading" ? "animate-spin" : ""}`} />
+              {gpsStatus === "loading" ? "Mendeteksi lokasi..." : "Ambil Lokasi Saat Ini"}
+            </Button>
+          )}
         </div>
 
         {/* Date */}

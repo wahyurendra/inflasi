@@ -462,6 +462,10 @@ class PriceReport(Base):
     nama_pasar: Mapped[str] = mapped_column(String(200))
     kota: Mapped[str | None] = mapped_column(String(100))
     kecamatan: Mapped[str | None] = mapped_column(String(100))
+    # Reporter's GPS coordinates at submission time, captured client-side
+    # (browser Geolocation API). Best-effort — NULL if location wasn't granted.
+    latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
+    longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
     tanggal: Mapped[date] = mapped_column(Date)
     # Best-effort link into `dim_market`, set by `MarketNormalizer` after the
     # report lands. NULL when no fuzzy match clears the threshold — the raw

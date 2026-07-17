@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Flag, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Flag, Eye, MapPin } from "lucide-react";
 
 export default function ValidasiPage() {
   const [statusFilter, setStatusFilter] = useState("PENDING");
@@ -256,6 +256,22 @@ export default function ValidasiPage() {
                   {String(detailDialog.catatan)}
                 </div>
               ) : null}
+              {detailDialog.latitude != null && detailDialog.longitude != null ? (
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="text-muted-foreground">Lokasi GPS:</span>{" "}
+                  <a
+                    href={`https://www.google.com/maps?q=${detailDialog.latitude},${detailDialog.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground font-mono text-xs"
+                  >
+                    {Number(detailDialog.latitude).toFixed(6)}, {Number(detailDialog.longitude).toFixed(6)}
+                  </a>
+                </div>
+              ) : (
+                <div className="text-muted-foreground text-xs">Tidak ada data lokasi GPS</div>
+              )}
             </div>
           )}
         </DialogContent>

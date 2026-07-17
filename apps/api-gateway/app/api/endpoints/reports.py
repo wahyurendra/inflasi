@@ -27,6 +27,10 @@ class CreateReportRequest(BaseModel):
     namaPasar: str
     kota: str | None = None
     kecamatan: str | None = None
+    # Reporter's GPS coordinates, captured client-side (browser Geolocation
+    # API). Optional — a report can still be submitted without location.
+    latitude: float | None = None
+    longitude: float | None = None
     tanggal: str
     catatan: str | None = None
 
@@ -151,6 +155,8 @@ async def create_report(
         nama_pasar=body.namaPasar,
         kota=body.kota,
         kecamatan=body.kecamatan,
+        latitude=body.latitude,
+        longitude=body.longitude,
         tanggal=date.fromisoformat(body.tanggal),
         catatan=body.catatan,
         status="PENDING",
@@ -323,6 +329,10 @@ def _report_to_dict(r: PriceReport) -> dict:
         "harga": float(r.harga),
         "satuan": r.satuan,
         "namaPasar": r.nama_pasar,
+        "kota": r.kota,
+        "kecamatan": r.kecamatan,
+        "latitude": float(r.latitude) if r.latitude is not None else None,
+        "longitude": float(r.longitude) if r.longitude is not None else None,
         "tanggal": r.tanggal.isoformat(),
         "status": r.status,
         "catatan": r.catatan,
