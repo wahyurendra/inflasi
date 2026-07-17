@@ -16,6 +16,7 @@ import {
 import { useSubmitReport } from "@/hooks/use-reports";
 import { useToast } from "@/hooks/use-toast";
 import { MVP_COMMODITIES, REGIONS } from "@/lib/constants";
+import { getRegenciesByProvince, getDistrictsByRegency } from "@/lib/wilayah";
 import { Camera, Send, X } from "lucide-react";
 
 export default function LaporHargaPage() {
@@ -28,7 +29,9 @@ export default function LaporHargaPage() {
   const [harga, setHarga] = useState("");
   const [satuan, setSatuan] = useState("kg");
   const [namaPasar, setNamaPasar] = useState("");
+  const [kabupatenKode, setKabupatenKode] = useState("");
   const [kota, setKota] = useState("");
+  const [kecamatanKode, setKecamatanKode] = useState("");
   const [kecamatan, setKecamatan] = useState("");
   const [tanggal, setTanggal] = useState(
     new Date().toISOString().split("T")[0]
@@ -44,6 +47,33 @@ export default function LaporHargaPage() {
       (c) => c.kode === value
     );
     if (commodity) setSatuan(commodity.satuan);
+  };
+
+  // Kabupaten/kecamatan options depend on the parent selection — reset the
+  // downstream choice whenever the parent changes so a stale name can't ship.
+  const kabupatenOptions = regionId ? getRegenciesByProvince(regionId) : [];
+  const kecamatanOptions = kabupatenKode ? getDistrictsByRegency(kabupatenKode) : [];
+
+  const handleRegionChange = (value: string) => {
+    setRegionId(value);
+    setKabupatenKode("");
+    setKota("");
+    setKecamatanKode("");
+    setKecamatan("");
+  };
+
+  const handleKabupatenChange = (value: string) => {
+    const regency = kabupatenOptions.find((r) => r.code === value);
+    setKabupatenKode(value);
+    setKota(regency?.name ?? "");
+    setKecamatanKode("");
+    setKecamatan("");
+  };
+
+  const handleKecamatanChange = (value: string) => {
+    const district = kecamatanOptions.find((d) => d.code === value);
+    setKecamatanKode(value);
+    setKecamatan(district?.name ?? "");
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,7 +217,7 @@ export default function LaporHargaPage() {
         {/* Location */}
         <div className="space-y-2">
           <Label>Provinsi *</Label>
-          <Select value={regionId} onValueChange={setRegionId}>
+          <Select value={regionId} onValueChange={handleRegionChange}>
             <SelectTrigger>
               <SelectValue placeholder="Pilih provinsi" />
             </SelectTrigger>
@@ -204,19 +234,41 @@ export default function LaporHargaPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Kota / Kabupaten</Label>
-            <Input
-              placeholder="Opsional"
-              value={kota}
-              onChange={(e) => setKota(e.target.value)}
-            />
+            <Select
+              value={kabupatenKode}
+              onValueChange={handleKabupatenChange}
+              disabled={!regionId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={regionId ? "Pilih kota/kabupaten" : "Pilih provinsi dahulu"} />
+              </SelectTrigger>
+              <SelectContent>
+                {kabupatenOptions.map((r) => (
+                  <SelectItem key={r.code} value={r.code}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Kecamatan</Label>
-            <Input
-              placeholder="Opsional"
-              value={kecamatan}
-              onChange={(e) => setKecamatan(e.target.value)}
-            />
+            <Select
+              value={kecamatanKode}
+              onValueChange={handleKecamatanChange}
+              disabled={!kabupatenKode}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={kabupatenKode ? "Pilih kecamatan" : "Pilih kota/kabupaten dahulu"} />
+              </SelectTrigger>
+              <SelectContent>
+                {kecamatanOptions.map((d) => (
+                  <SelectItem key={d.code} value={d.code}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
