@@ -9,6 +9,7 @@ from app.database import get_db
 from app.api.deps import get_current_user
 from app.core.ids import new_id
 from app.models.tables import PriceReport, DimCommodity, DimRegion, FactPriceDaily
+from app.services.gamification_service import award_for_approved_report
 
 router = APIRouter()
 
@@ -230,11 +231,16 @@ async def update_report(
         raise HTTPException(status_code=404, detail="Report not found")
 
     from datetime import datetime
+    was_approved = report.status == "APPROVED"
     report.status = body.status
     report.reviewed_by = current_user["id"]
     report.reviewed_at = datetime.utcnow()
     if body.rejectionNote:
         report.rejection_note = body.rejectionNote
+
+    if body.status == "APPROVED" and not was_approved:
+        await award_for_approved_report(db, report)
+
     await db.commit()
     await db.refresh(report)
     return {"data": _report_to_dict(report)}

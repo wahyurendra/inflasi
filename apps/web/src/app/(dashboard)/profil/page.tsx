@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useMyReports } from "@/hooks/use-reports";
+import { useUserPoints, useUserBadges } from "@/hooks/use-gamification";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Shield, MapPin, Award, Flame, FileText } from "lucide-react";
@@ -14,6 +16,14 @@ const roleLabels: Record<string, string> = {
 
 export default function ProfilPage() {
   const { user } = useAuth();
+  const { data: reportsData } = useMyReports(1);
+  const { data: pointsData } = useUserPoints();
+  const { data: badgesData } = useUserBadges();
+
+  const totalReports = reportsData?.total ?? 0;
+  const totalPoints = pointsData?.data?.totalPoints ?? 0;
+  const currentStreak = pointsData?.data?.currentStreak ?? 0;
+  const badgeCount = badgesData?.data?.length ?? 0;
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -56,22 +66,22 @@ export default function ProfilPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-card rounded-xl border p-4 text-center">
           <FileText className="h-5 w-5 mx-auto text-primary mb-1" />
-          <p className="text-2xl font-bold">0</p>
+          <p className="text-2xl font-bold">{totalReports}</p>
           <p className="text-xs text-muted-foreground">Laporan</p>
         </div>
         <div className="bg-card rounded-xl border p-4 text-center">
           <Award className="h-5 w-5 mx-auto text-yellow-500 mb-1" />
-          <p className="text-2xl font-bold">0</p>
+          <p className="text-2xl font-bold">{totalPoints}</p>
           <p className="text-xs text-muted-foreground">Poin</p>
         </div>
         <div className="bg-card rounded-xl border p-4 text-center">
           <Flame className="h-5 w-5 mx-auto text-orange-500 mb-1" />
-          <p className="text-2xl font-bold">0</p>
+          <p className="text-2xl font-bold">{currentStreak}</p>
           <p className="text-xs text-muted-foreground">Streak</p>
         </div>
         <div className="bg-card rounded-xl border p-4 text-center">
           <User className="h-5 w-5 mx-auto text-blue-500 mb-1" />
-          <p className="text-2xl font-bold">0</p>
+          <p className="text-2xl font-bold">{badgeCount}</p>
           <p className="text-xs text-muted-foreground">Badge</p>
         </div>
       </div>
