@@ -5,9 +5,11 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.ids import new_id
 from app.database import get_db
 from app.models.tables import UserPoints, UserBadge, Badge
+from app.services.gamification_service import award_badge_if_new
 
 router = APIRouter()
 
@@ -65,10 +67,11 @@ async def leaderboard(
 
 @router.get("/user-points")
 async def get_user_points(
-    user_id: str = Query(..., description="User ID"),
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Get user's gamification points."""
+    """Get the current user's gamification points."""
+    user_id = current_user["id"]
     result = await db.execute(
         select(UserPoints).where(UserPoints.user_id == user_id)
     )
@@ -100,10 +103,11 @@ async def get_user_points(
 
 @router.get("/user-badges")
 async def get_user_badges(
-    user_id: str = Query(..., description="User ID"),
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Get user's earned badges."""
+    """Get the current user's earned badges."""
+    user_id = current_user["id"]
     result = await db.execute(
         select(UserBadge).where(UserBadge.user_id == user_id)
     )
@@ -213,36 +217,25 @@ async def award_badge(
     db: AsyncSession = Depends(get_db),
 ):
     """Award a badge to user. Idempotent — returns existing if already awarded."""
-    # Find badge by code
-    result = await db.execute(
-        select(Badge).where(Badge.code == body.badgeCode)
-    )
-    badge = result.scalar()
+    badge = (await db.execute(select(Badge).where(Badge.code == body.badgeCode))).scalar()
     if not badge:
         raise HTTPException(status_code=404, detail=f"Badge '{body.badgeCode}' not found")
 
-    # Check if already awarded
-    existing = await db.execute(
-        select(UserBadge).where(
-            UserBadge.user_id == body.userId,
-            UserBadge.badge_id == badge.id,
-        )
-    )
-    ub = existing.scalar()
+    newly_awarded = await award_badge_if_new(db, body.userId, body.badgeCode)
+    await db.commit()
 
-    if not ub:
-        ub = UserBadge(
-            id=new_id(),
-            user_id=body.userId,
-            badge_id=badge.id,
+    ub = (
+        await db.execute(
+            select(UserBadge).where(
+                UserBadge.user_id == body.userId, UserBadge.badge_id == badge.id
+            )
         )
-        db.add(ub)
-        await db.commit()
-        await db.refresh(ub)
+    ).scalar()
 
     return {"data": {
         "badgeId": badge.id,
         "code": badge.code,
         "name": badge.name,
-        "earnedAt": ub.earned_at.isoformat() if ub.earned_at else None,
+        "isNew": newly_awarded is not None,
+        "earnedAt": ub.earned_at.isoformat() if ub and ub.earned_at else None,
     }}

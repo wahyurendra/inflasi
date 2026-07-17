@@ -476,6 +476,9 @@ class PriceReport(Base):
     reviewed_by: Mapped[str | None] = mapped_column(String)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
     rejection_note: Mapped[str | None] = mapped_column(Text)
+    # Idempotency marker: set the first (and only the first) time this report is
+    # awarded gamification points/streak/badges, so a re-approval never double-awards.
+    gamification_awarded_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

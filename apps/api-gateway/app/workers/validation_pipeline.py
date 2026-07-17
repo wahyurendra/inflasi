@@ -26,6 +26,7 @@ from app.database import async_session
 from app.etl.pipelines.market_normalizer import MarketNormalizer
 from app.etl.sources import OFFICIAL
 from app.models.tables import FactPriceDaily, Notification, PriceReport
+from app.services.gamification_service import award_for_approved_report
 
 logger = logging.getLogger("validation_pipeline")
 
@@ -133,10 +134,12 @@ class ValidationPipeline:
 
             report.confidence_score = Decimal(str(confidence))
             report.status = status
-            db.add(self._notification(report, status, deviation))
 
             fact_written = False
             if status == "APPROVED":
+                # Points/streak/badges + the rich "report_approved" notification —
+                # replaces the generic notification below for this branch.
+                await award_for_approved_report(db, report)
                 # Flush so the median SELECT inside _upsert_crowd_fact sees this
                 # report's freshly-APPROVED status. Still inside the transaction —
                 # we either commit both the status flip and the fact upsert below,
@@ -147,6 +150,8 @@ class ValidationPipeline:
                 except Exception:
                     # Status flip + notification still commit; reviewer can resolve later.
                     logger.exception("crowd fact upsert failed for report %s", report_id)
+            else:
+                db.add(self._notification(report, status, deviation))
 
             commodity_id = report.commodity_id
             region_id = report.region_id
