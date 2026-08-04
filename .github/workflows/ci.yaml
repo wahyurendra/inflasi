@@ -21,6 +21,7 @@ jobs:
       web: ${{ steps.f.outputs.web }}
       api: ${{ steps.f.outputs.api }}
       ml: ${{ steps.f.outputs.ml }}
+      training: ${{ steps.f.outputs.training }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -31,6 +32,9 @@ jobs:
             web: 'apps/web/**'
             api: 'apps/api-gateway/**'
             ml: 'ml/ml-gateway/**'
+            training:
+              - 'ml/training/**'
+              - 'apps/api-gateway/app/services/feature_encoder.py'
 
   web:
     needs: changes
@@ -80,9 +84,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python -m compileall -q app
+          python -m unittest discover -s tests
+
+  training:
+    needs: changes
+    if: needs.changes.outputs.training == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile training modules
+        run: python -m compileall -q ml/training apps/api-gateway/app/services/feature_encoder.py
 
   build-push-api:
-    needs: api
+    needs: [changes, api]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -105,7 +122,7 @@ jobs:
             ghcr.io/wahyurendra/inflasi-api:latest
 
   build-push-ml:
-    needs: ml
+    needs: [changes, ml]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.ml == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -118,11 +135,56 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push ML image
+      - name: Build and push CPU ML image
         uses: docker/build-push-action@v6
         with:
           context: ./ml/ml-gateway
+          file: ./ml/ml-gateway/Dockerfile
           push: true
           tags: |
-            ghcr.io/wahyurendra/inflasi-ml:${{ github.sha }}
-            ghcr.io/wahyurendra/inflasi-ml:latest
+            ghcr.io/wahyurendra/inflasi-ml-cpu:${{ github.sha }}
+            ghcr.io/wahyurendra/inflasi-ml-cpu:latest
+
+      - name: Build and push GPU ML image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ml/ml-gateway
+          file: ./ml/ml-gateway/Dockerfile.gpu
+          push: true
+          tags: |
+            ghcr.io/wahyurendra/inflasi-ml-gpu:${{ github.sha }}
+            ghcr.io/wahyurendra/inflasi-ml-gpu:latest
+
+  build-push-training:
+    needs: [changes, training]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.training == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push CPU training image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./ml/training/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/wahyurendra/inflasi-training:${{ github.sha }}
+            ghcr.io/wahyurendra/inflasi-training:latest
+
+      - name: Build and push GPU training image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./ml/training/Dockerfile.gpu
+          push: true
+          tags: |
+            ghcr.io/wahyurendra/inflasi-training-gpu:${{ github.sha }}
+            ghcr.io/wahyurendra/inflasi-training-gpu:latest
