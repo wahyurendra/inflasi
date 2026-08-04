@@ -32,7 +32,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: ml-gateway
-          image: ghcr.io/wahyurendra/inflasi-ml:49d07e90cf44
+          image: ghcr.io/wahyurendra/inflasi-ml:17c08c0c6638
           imagePullPolicy: Always
           ports:
             - { containerPort: 8080, name: http }
