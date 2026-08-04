@@ -18,6 +18,11 @@ data:
         metrics_path: /metrics
         static_configs:
           - targets: ["inflasi-ml:8080"]
+      - job_name: ml-gateway-gpu
+        metrics_path: /metrics
+        static_configs:
+          # This target is expected to be down while TFT training owns the GPU.
+          - targets: ["inflasi-ml-gpu:8080"]
       - job_name: prometheus
         static_configs:
           - targets: ["localhost:9090"]

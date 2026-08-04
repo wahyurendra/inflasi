@@ -4,8 +4,8 @@ Trained artifacts (joblibs, .ckpt) live in the ``train-ml`` bucket under
 ``models/{model_type}/{target_type}/h{horizon}/v{version}/{filename}``.
 
 This module fetches them lazily, caches the bytes to ``MODEL_CACHE_DIR``
-(already a Longhorn PVC in production — see the deployment manifest) so a pod
-restart doesn't re-download, and keeps **deserialized** objects in an LRU so
+(a Longhorn PVC on the GPU backend and an ``emptyDir`` on the CPU frontend) and
+keeps **deserialized** objects in an LRU so
 hot models avoid the joblib parse cost on every request.
 
 All network I/O is best-effort: a GCS outage or missing artifact returns

@@ -5,7 +5,14 @@ name: CD
 on:
   push:
     branches: [main]
-  workflow_dispatch:        # manual trigger from any branch (first test deploy)
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Images to build for bootstrap or recovery
+        required: true
+        default: all
+        type: choice
+        options: [all, training, ml, api, web, changed]
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -15,9 +22,10 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      web: ${{ steps.f.outputs.web }}
-      api: ${{ steps.f.outputs.api }}
-      ml: ${{ steps.f.outputs.ml }}
+      web: ${{ steps.select.outputs.web }}
+      api: ${{ steps.select.outputs.api }}
+      ml: ${{ steps.select.outputs.ml }}
+      training: ${{ steps.select.outputs.training }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -31,10 +39,43 @@ jobs:
             web: 'apps/web/**'
             api: 'apps/api-gateway/**'
             ml: 'ml/ml-gateway/**'
+            training:
+              - 'ml/training/**'
+              - 'apps/api-gateway/app/services/feature_encoder.py'
+      - name: Resolve build targets
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET: ${{ inputs.target || 'changed' }}
+          CHANGED_WEB: ${{ steps.f.outputs.web }}
+          CHANGED_API: ${{ steps.f.outputs.api }}
+          CHANGED_ML: ${{ steps.f.outputs.ml }}
+          CHANGED_TRAINING: ${{ steps.f.outputs.training }}
+        run: |
+          set -euo pipefail
+          select_target() {
+            local name=$1
+            local changed=$2
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              if [ "$TARGET" = "all" ] || [ "$TARGET" = "$name" ]; then
+                echo "$name=true" >> "$GITHUB_OUTPUT"
+              elif [ "$TARGET" = "changed" ]; then
+                echo "$name=$changed" >> "$GITHUB_OUTPUT"
+              else
+                echo "$name=false" >> "$GITHUB_OUTPUT"
+              fi
+            else
+              echo "$name=$changed" >> "$GITHUB_OUTPUT"
+            fi
+          }
+          select_target web "$CHANGED_WEB"
+          select_target api "$CHANGED_API"
+          select_target ml "$CHANGED_ML"
+          select_target training "$CHANGED_TRAINING"
 
   deploy:
     needs: changes
-    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.ml == 'true'
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.ml == 'true' || needs.changes.outputs.training == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -84,9 +125,21 @@ jobs:
           fi
 
           if [ "${{ needs.changes.outputs.ml }}" = "true" ]; then
-            docker build -f ml/ml-gateway/Dockerfile.gpu -t ${REG}/inflasi-ml:${SHA} ml/ml-gateway
-            docker push ${REG}/inflasi-ml:${SHA}
-            bump inflasi-ml infra/k8s/projects/inflasi-ml/deployment.yaml
+            docker build -f ml/ml-gateway/Dockerfile -t ${REG}/inflasi-ml-cpu:${SHA} ml/ml-gateway
+            docker push ${REG}/inflasi-ml-cpu:${SHA}
+            docker build -f ml/ml-gateway/Dockerfile.gpu -t ${REG}/inflasi-ml-gpu:${SHA} ml/ml-gateway
+            docker push ${REG}/inflasi-ml-gpu:${SHA}
+            bump inflasi-ml-cpu infra/k8s/projects/inflasi-ml/deployment.yaml
+            bump inflasi-ml-gpu infra/k8s/projects/inflasi-ml/deployment-gpu.yaml
+          fi
+
+          if [ "${{ needs.changes.outputs.training }}" = "true" ]; then
+            docker build -f ml/training/Dockerfile -t ${REG}/inflasi-training:${SHA} .
+            docker push ${REG}/inflasi-training:${SHA}
+            docker build -f ml/training/Dockerfile.gpu -t ${REG}/inflasi-training-gpu:${SHA} .
+            docker push ${REG}/inflasi-training-gpu:${SHA}
+            bump inflasi-training infra/k8s/projects/inflasi-training/jobs.yaml
+            bump inflasi-training-gpu infra/k8s/projects/inflasi-training/jobs.yaml
           fi
 
       - name: Commit manifest bumps
@@ -95,4 +148,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add infra/k8s/projects
           git diff --cached --quiet || git commit -m "ci: bump image tags to ${GITHUB_SHA::12} [skip ci]"
-          git push
+          git push origin "HEAD:${GITHUB_REF_NAME}"

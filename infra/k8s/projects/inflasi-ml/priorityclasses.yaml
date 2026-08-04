@@ -1,0 +1,19 @@
+# The cluster has one GPU. Training is finite and gets priority; serving is
+# automatically restored by its Deployment when the Job releases the device.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: inflasi-gpu-serving
+value: 1000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: Low-priority, restartable GPU inference backend.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: inflasi-gpu-training
+value: 100000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: Finite TFT training that may preempt GPU inference.

@@ -1,0 +1,70 @@
+# GPU-only backend. The low PriorityClass lets TFT training evict this pod.
+# Its Deployment immediately recreates it; the pod waits Pending until training
+# releases the only GPU, then becomes Ready again without operator intervention.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflasi-ml-gpu
+  namespace: default
+  labels: { app: inflasi-ml, compute: gpu }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: inflasi-ml, compute: gpu }
+  template:
+    metadata:
+      labels: { app: inflasi-ml, compute: gpu }
+    spec:
+      serviceAccountName: inflasi-ml
+      priorityClassName: inflasi-gpu-serving
+      imagePullSecrets:
+        - name: ghcr-secret
+      runtimeClassName: nvidia
+      nodeSelector:
+        accelerator: nvidia-a100
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: ml-gateway
+          image: ghcr.io/wahyurendra/inflasi-ml-gpu:0.0.0
+          imagePullPolicy: Always
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - { name: WORKLOAD_ROLE, value: "gpu" }
+            - { name: REQUIRE_GPU, value: "true" }
+            - { name: MODEL_CACHE_DIR, value: "/models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "24Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - { name: ml-models, mountPath: /models }
+            - { name: dshm, mountPath: /dev/shm }
+      volumes:
+        - name: ml-models
+          persistentVolumeClaim:
+            claimName: ml-models
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

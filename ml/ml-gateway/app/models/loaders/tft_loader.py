@@ -12,7 +12,9 @@ groupings the trainer used (KNOWN_REALS / OBSERVED_REALS / STATIC_CATEGORICALS).
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from typing import Any
 
 import pandas as pd
@@ -51,13 +53,20 @@ _STATIC_CATEGORICALS = ("commodity_id", "region_id", "entity_id")
 class TFTLoader:
     """Returns ``{"p10","p50","p90","version"}`` or ``None``."""
 
+    def __init__(self, *, allow_remote: bool = True) -> None:
+        remote = os.environ.get("GPU_GATEWAY_URL", "") if allow_remote else ""
+        self.remote_url = remote.rstrip("/")
+
     def predict(
         self,
         features_df: pd.DataFrame,
         horizon: int,
     ) -> dict[str, Any] | None:
+        if self.remote_url:
+            return self._predict_remote(features_df, horizon)
+
         try:
-            import torch  # noqa: F401
+            import torch
         except Exception:
             return None  # CPU image — silently skip.
         try:
@@ -91,11 +100,45 @@ class TFTLoader:
                 model.dataset_parameters, frame, predict=True,
             )
             loader = dataset.to_dataloader(train=False, batch_size=1)
-            raw = model.predict(loader, mode="raw", return_x=False)
+            accelerator = "gpu" if torch.cuda.is_available() else "cpu"
+            raw = model.predict(
+                loader,
+                mode="raw",
+                return_x=False,
+                trainer_kwargs={"accelerator": accelerator, "devices": 1},
+            )
             quantiles = _extract_quantiles(raw, horizon)
             return {**quantiles, "version": ref.version}
         except Exception:
             logger.exception("TFT predict failed")
+            return None
+
+    def _predict_remote(
+        self,
+        features_df: pd.DataFrame,
+        horizon: int,
+    ) -> dict[str, Any] | None:
+        """Delegate TFT-only inference to the GPU gateway.
+
+        DataFrame JSON serialization normalizes Timestamp/NaN values so the
+        internal FastAPI endpoint receives the same feature rows as local TFT.
+        Any outage is a normal degraded-mode event: the ensemble continues with
+        CPU models instead of failing the public request.
+        """
+        import httpx
+
+        rows = json.loads(features_df.to_json(orient="records", date_format="iso"))
+        try:
+            with httpx.Client(timeout=50.0) as client:
+                response = client.post(
+                    f"{self.remote_url}/internal/gpu/tft/predict",
+                    json={"features": rows, "horizon": horizon},
+                )
+            response.raise_for_status()
+            data = response.json()
+            return data if isinstance(data, dict) else None
+        except Exception as exc:
+            logger.warning("remote TFT unavailable (%s): %s", self.remote_url, exc)
             return None
 
 

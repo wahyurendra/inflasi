@@ -1,4 +1,4 @@
-# ClusterIP — internal only. api-gateway / analytics reach it at http://inflasi-ml:8080.
+# Stable, always-on ClusterIP. API Gateway never points directly at the GPU pod.
 apiVersion: v1
 kind: Service
 metadata:
@@ -7,6 +7,6 @@ metadata:
   labels: { app: inflasi-ml }
 spec:
   type: ClusterIP
-  selector: { app: inflasi-ml }
+  selector: { app: inflasi-ml, compute: cpu }
   ports:
     - { name: http, port: 8080, targetPort: 8080 }

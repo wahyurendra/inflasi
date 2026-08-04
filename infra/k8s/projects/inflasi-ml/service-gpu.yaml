@@ -1,0 +1,12 @@
+# Internal backend used only by the CPU gateway for TFT inference and OCR.
+apiVersion: v1
+kind: Service
+metadata:
+  name: inflasi-ml-gpu
+  namespace: default
+  labels: { app: inflasi-ml, compute: gpu }
+spec:
+  type: ClusterIP
+  selector: { app: inflasi-ml, compute: gpu }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }

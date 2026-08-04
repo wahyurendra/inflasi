@@ -1,73 +1,65 @@
-# INFLASI ML Gateway. ONE GPU pod (the only A100 consumer) -> replicas 1, Recreate
-# (a GPU can't be shared across overlapping rolling pods). Needs the NVIDIA device
-# plugin on the node + a `nvidia` RuntimeClass (K3s containerd nvidia runtime) — NOT
-# the gpu-operator helm chart. If no GPU node exists yet, drop the gpu request +
-# runtimeClassName/nodeSelector/tolerations and it runs CPU-only (degraded).
-# CI bumps the `image:` tag on this file only.
+# Always-on ML API. CPU-capable models stay available while the only GPU is
+# preempted by TFT training. TFT and OCR are delegated to inflasi-ml-gpu.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inflasi-ml
+  name: inflasi-ml-cpu
   namespace: default
-  labels: { app: inflasi-ml }
+  labels: { app: inflasi-ml, compute: cpu }
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
-    matchLabels: { app: inflasi-ml }
+    matchLabels: { app: inflasi-ml, compute: cpu }
   template:
     metadata:
-      labels: { app: inflasi-ml }
+      labels: { app: inflasi-ml, compute: cpu }
     spec:
       serviceAccountName: inflasi-ml
       imagePullSecrets:
         - name: ghcr-secret
-      runtimeClassName: nvidia
-      nodeSelector:
-        accelerator: nvidia-a100
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
+      # Do not consume CPU/RAM on the dedicated GPU node when regular workers
+      # are available. This is preferred, not required, to survive small clusters.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: accelerator
+                    operator: DoesNotExist
       containers:
         - name: ml-gateway
-          image: ghcr.io/wahyurendra/inflasi-ml:17c08c0c6638
+          image: ghcr.io/wahyurendra/inflasi-ml-cpu:0.0.0
           imagePullPolicy: Always
           ports:
             - { containerPort: 8080, name: http }
           env:
-            - name: MODEL_CACHE_DIR
-              value: /models
-            - name: GCS_BUCKET
-              value: "train-ml"
-            - name: API_GATEWAY_URL
-              value: "http://inflasi-api:8080"
+            - { name: WORKLOAD_ROLE, value: "cpu" }
+            - { name: MODEL_CACHE_DIR, value: "/models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
+            - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
+            - { name: GPU_GATEWAY_URL, value: "http://inflasi-ml-gpu:8080" }
           readinessProbe:
-            httpGet: { path: /health, port: 8080 }
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            httpGet: { path: /ready, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
           livenessProbe:
             httpGet: { path: /health, port: 8080 }
-            initialDelaySeconds: 60
+            initialDelaySeconds: 30
             periodSeconds: 30
           resources:
-            requests:
-              cpu: "2"
-              memory: "4Gi"
-              nvidia.com/gpu: "1"
-            limits:
-              cpu: "8"
-              memory: "12Gi"
-              nvidia.com/gpu: "1"
+            requests: { cpu: "1", memory: "2Gi" }
+            limits: { cpu: "4", memory: "8Gi" }
           volumeMounts:
-            - { name: ml-models, mountPath: /models }
-            - { name: dshm, mountPath: /dev/shm }
+            - { name: model-cache, mountPath: /models }
       volumes:
-        - name: ml-models
-          persistentVolumeClaim:
-            claimName: ml-models
-        - name: dshm
+        # Artifacts remain canonical in GCS. A disposable cache avoids sharing
+        # the GPU pod's ReadWriteOnce PVC and cannot block scheduling.
+        - name: model-cache
           emptyDir:
-            medium: Memory
-            sizeLimit: 2Gi
+            sizeLimit: 20Gi
