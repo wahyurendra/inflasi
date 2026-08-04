@@ -1,4 +1,4 @@
-"""Ensemble price forecaster — loads trained artifacts from MinIO.
+"""Ensemble price forecaster — loads trained artifacts from GCS.
 
 Five base models, all loaded lazily by the matching loader in
 :mod:`app.models.loaders`:
@@ -10,7 +10,7 @@ Five base models, all loaded lazily by the matching loader in
 * **Stacking** — RidgeCV meta over the four base predictions.
 
 When all artifacts are present the response carries real quantiles and a true
-stacked point. When any loader returns ``None`` (missing artifact, MinIO down,
+stacked point. When any loader returns ``None`` (missing artifact, GCS down,
 torch not installed) the ensemble degrades to a renormalized weighted average
 over whatever survived. When *no* trained model loads at all we fall back to
 the in-process ARIMA trained at request time, preserving the API's promise

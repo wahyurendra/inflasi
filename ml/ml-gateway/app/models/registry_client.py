@@ -2,7 +2,7 @@
 
 Looks up which artifact path is currently ``is_active = true`` for a given
 ``(model_type, target_type, horizon)`` slot so the loaders can fetch the right
-file from MinIO.
+file from Google Cloud Storage.
 
 Failures (api-gateway down, no active model) return ``None`` — the caller is
 expected to skip that model and the ensemble degrades gracefully.

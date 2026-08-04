@@ -1,6 +1,6 @@
 """Train LightGBM point + p10/p50/p90 quantile models for a single horizon.
 
-Outputs four joblibs to MinIO under ``models/lightgbm/price/h{horizon}/v{version}/``:
+Outputs four joblibs to GCS under ``models/lightgbm/price/h{horizon}/v{version}/``:
 ``point.joblib``, ``quantile_p10.joblib``, ``quantile_p50.joblib``,
 ``quantile_p90.joblib``. Each contains
 ``{"model": LGBMRegressor, "features": list[str], "alpha"?: float}``.

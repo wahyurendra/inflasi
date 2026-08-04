@@ -19,7 +19,7 @@ import pandas as pd
 from ml.training.common import (
     TrainingConfig,
     artifact_dir,
-    get_minio_client,
+    download_file,
     register_model,
     save_metrics_local,
     setup_logging,
@@ -32,12 +32,8 @@ _BASES = ("lgbm", "sarimax", "prophet", "tft")
 
 
 def _read_pred(cfg: TrainingConfig, key: str, name: str) -> pd.DataFrame:
-    """Download a base-model prediction parquet from MinIO and add prefix."""
-    local = Path(cfg.local_cache) / "ensemble_inputs" / Path(key).name
-    local.parent.mkdir(parents=True, exist_ok=True)
-    if not local.exists():
-        client = get_minio_client(cfg)
-        client.fget_object(cfg.minio_datasets_bucket, key, str(local))
+    """Download a base-model prediction parquet from GCS and add prefix."""
+    local = download_file(cfg, key)
     df = pd.read_parquet(local)
     df["date"] = pd.to_datetime(df["date"])
     cols = list(_KEYS) + ["target", "prediction"]

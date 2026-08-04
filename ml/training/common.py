@@ -1,8 +1,8 @@
-"""Shared training utilities — dataset loading, metrics, MinIO upload, registry POST.
+"""Shared training utilities — dataset loading, metrics, GCS upload, registry POST.
 
 Mirrors the helper functions in the user's notebook so the training scripts read
-like simplified versions of it. Each ``train_*.py`` reads a parquet from MinIO
-(or the local cache), trains its model, writes the artifact(s) back to MinIO,
+like simplified versions of it. Each ``train_*.py`` reads a parquet from GCS
+(or the local cache), trains its model, writes the artifact(s) back to GCS,
 then POSTs to ``/api/v1/admin/models`` to register the new version. Promotion to
 ``is_active = true`` is a separate operator step (avoid auto-promote until
 backtest confirms).
@@ -13,9 +13,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -63,71 +65,99 @@ DEFAULT_FEATURES: tuple[str, ...] = (
 @dataclass
 class TrainingConfig:
     horizon: int = 7
-    dataset_path: str = "datasets/train_ready_h7.parquet"  # MinIO key
-    artifact_prefix: str = "models"                         # MinIO key prefix
+    dataset_path: str = "gs://train-ml/datasets/train_ready_h7.parquet"
+    artifact_prefix: str = "models"                         # GCS object prefix
     version: str = "v1"                                     # bump per training run
     api_gateway_url: str = "http://inflasi-api:8080"
-    minio_endpoint: str = "inflasi-minio:9000"
-    minio_bucket: str = "inflasi-models"
-    minio_datasets_bucket: str = "inflasi-models"           # reuse same bucket
-    minio_access_key: str = ""
-    minio_secret_key: str = ""
-    minio_secure: bool = False
+    gcs_bucket: str = "train-ml"
     local_cache: str = "/tmp/inflasi-training"
 
     @classmethod
     def from_env(cls, *, horizon: int = 7) -> "TrainingConfig":
+        bucket = _bucket_name(os.environ.get("GCS_BUCKET", "train-ml"))
         return cls(
             horizon=horizon,
             dataset_path=os.environ.get(
-                "TRAIN_DATASET_PATH", f"datasets/train_ready_h{horizon}.parquet"
+                "TRAIN_DATASET_PATH", f"gs://{bucket}/datasets/train_ready_h{horizon}.parquet"
             ),
             artifact_prefix=os.environ.get("ARTIFACT_PREFIX", "models"),
             version=os.environ.get("MODEL_VERSION", "v1"),
             api_gateway_url=os.environ.get("API_GATEWAY_URL", "http://inflasi-api:8080"),
-            minio_endpoint=os.environ.get("MINIO_ENDPOINT", "inflasi-minio:9000"),
-            minio_bucket=os.environ.get("MINIO_BUCKET", "inflasi-models"),
-            minio_datasets_bucket=os.environ.get("MINIO_DATASETS_BUCKET", "inflasi-models"),
-            minio_access_key=os.environ.get("MINIO_ACCESS_KEY", ""),
-            minio_secret_key=os.environ.get("MINIO_SECRET_KEY", ""),
-            minio_secure=os.environ.get("MINIO_SECURE", "false").lower() in {"1", "true", "yes"},
+            gcs_bucket=bucket,
             local_cache=os.environ.get("LOCAL_CACHE", "/tmp/inflasi-training"),
         )
 
 
-# ── MinIO helpers ─────────────────────────────────────────────
+# ── Google Cloud Storage helpers ──────────────────────────────
 
 
-def get_minio_client(cfg: TrainingConfig):
-    """Return a configured MinIO client. Raises if creds missing."""
-    from minio import Minio  # type: ignore
+def _bucket_name(value: str) -> str:
+    """Accept ``train-ml`` or ``gs://train-ml`` and return the bucket name."""
+    raw = value.strip().rstrip("/")
+    if raw.startswith("gs://"):
+        parsed = urlparse(raw)
+        if parsed.path not in {"", "/"}:
+            raise ValueError("GCS_BUCKET must not include an object prefix")
+        raw = parsed.netloc
+    if not raw or raw in {".", ".."} or "/" in raw:
+        raise ValueError(f"invalid GCS bucket: {value!r}")
+    return raw
 
-    if not cfg.minio_access_key or not cfg.minio_secret_key:
-        raise RuntimeError("MINIO_ACCESS_KEY / MINIO_SECRET_KEY required")
-    return Minio(
-        cfg.minio_endpoint,
-        access_key=cfg.minio_access_key,
-        secret_key=cfg.minio_secret_key,
-        secure=cfg.minio_secure,
-    )
+
+def split_gcs_location(value: str, default_bucket: str) -> tuple[str, str]:
+    """Resolve a ``gs://bucket/key`` URI or relative object key."""
+    raw = value.strip()
+    if raw.startswith("gs://"):
+        parsed = urlparse(raw)
+        bucket = _bucket_name(parsed.netloc)
+        key = parsed.path.lstrip("/")
+    else:
+        bucket = _bucket_name(default_bucket)
+        key = raw.lstrip("/")
+    if not key or any(part == ".." for part in Path(key).parts):
+        raise ValueError(f"invalid GCS object path: {value!r}")
+    return bucket, key
 
 
-def download_parquet(cfg: TrainingConfig, key: str | None = None) -> Path:
-    """Download a parquet from MinIO; return the local cached path."""
-    key = key or cfg.dataset_path
-    local = Path(cfg.local_cache) / key
+def gcs_uri(cfg: TrainingConfig, value: str) -> str:
+    bucket, key = split_gcs_location(value, cfg.gcs_bucket)
+    return f"gs://{bucket}/{key}"
+
+
+def get_gcs_client():
+    """Return a GCS client authenticated through Application Default Credentials."""
+    from google.cloud import storage  # type: ignore
+
+    return storage.Client()
+
+
+def download_file(cfg: TrainingConfig, location: str) -> Path:
+    """Download a GCS object into the persistent local cache when missing."""
+    bucket, key = split_gcs_location(location, cfg.gcs_bucket)
+    local = Path(cfg.local_cache) / "gcs" / bucket / key
     local.parent.mkdir(parents=True, exist_ok=True)
-    if not local.exists():
-        client = get_minio_client(cfg)
-        client.fget_object(cfg.minio_datasets_bucket, key, str(local))
+    if not local.exists() or local.stat().st_size == 0:
+        temporary = local.with_name(f".{local.name}.{uuid.uuid4().hex}.part")
+        try:
+            blob = get_gcs_client().bucket(bucket).blob(key)
+            blob.download_to_filename(str(temporary))
+            temporary.replace(local)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
     return local
 
 
+def download_parquet(cfg: TrainingConfig, key: str | None = None) -> Path:
+    """Download a parquet from GCS; return the local cached path."""
+    return download_file(cfg, key or cfg.dataset_path)
+
+
 def upload_file(cfg: TrainingConfig, local_path: str | Path, key: str) -> str:
-    """Upload a single file to ``cfg.minio_bucket/{key}``; return the key."""
-    client = get_minio_client(cfg)
-    client.fput_object(cfg.minio_bucket, key, str(local_path))
-    return key
+    """Upload a file to GCS and return its canonical ``gs://`` URI."""
+    bucket, object_key = split_gcs_location(key, cfg.gcs_bucket)
+    get_gcs_client().bucket(bucket).blob(object_key).upload_from_filename(str(local_path))
+    return f"gs://{bucket}/{object_key}"
 
 
 # ── Dataset helpers ───────────────────────────────────────────
@@ -202,9 +232,10 @@ def regression_metrics(y_true: Iterable[float], y_pred: Iterable[float]) -> dict
 
 def artifact_dir(cfg: TrainingConfig, *, model_type: str, target_type: str = "price",
                  horizon: int | None = None) -> str:
-    """Convention: ``{prefix}/{model_type}/{target_type}/h{horizon|none}/v{version}/``."""
+    """Return the canonical GCS directory URI for a model artifact set."""
     h = f"h{horizon}" if horizon is not None else "h_global"
-    return f"{cfg.artifact_prefix}/{model_type}/{target_type}/{h}/{cfg.version}"
+    key = f"{cfg.artifact_prefix}/{model_type}/{target_type}/{h}/{cfg.version}"
+    return gcs_uri(cfg, key)
 
 
 # ── Registry registration ────────────────────────────────────
@@ -250,7 +281,7 @@ def register_model(
             resp.raise_for_status()
             return resp.json()
     except Exception:
-        logger.exception("register_model failed; artifact still in MinIO at %s", artifact_path)
+        logger.exception("register_model failed; artifact still in GCS at %s", artifact_path)
         return None
 
 
@@ -272,14 +303,17 @@ __all__ = [
     "TrainingConfig",
     "artifact_dir",
     "clean_xy",
+    "download_file",
     "download_parquet",
+    "gcs_uri",
     "get_feature_columns",
-    "get_minio_client",
+    "get_gcs_client",
     "load_dataset",
     "regression_metrics",
     "register_model",
     "save_metrics_local",
     "setup_logging",
     "split_dataset",
+    "split_gcs_location",
     "upload_file",
 ]
