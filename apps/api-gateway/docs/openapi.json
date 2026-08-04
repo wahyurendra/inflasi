@@ -1,0 +1,5859 @@
+{
+  "components": {
+    "responses": {
+      "ForbiddenError": {
+        "content": {
+          "application/json": {
+            "example": {
+              "detail": "admin role required"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        },
+        "description": "User terautentikasi tetapi role-nya tidak memiliki akses."
+      },
+      "UnauthorizedError": {
+        "content": {
+          "application/json": {
+            "example": {
+              "detail": "Tidak terautentikasi"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        },
+        "description": "Firebase ID token tidak ada, tidak valid, atau kedaluwarsa."
+      }
+    },
+    "schemas": {
+      "AdminUpdateUserRequest": {
+        "properties": {
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "AdminUpdateUserRequest",
+        "type": "object"
+      },
+      "AwardBadgeRequest": {
+        "properties": {
+          "badgeCode": {
+            "title": "Badgecode",
+            "type": "string"
+          },
+          "userId": {
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "badgeCode"
+        ],
+        "title": "AwardBadgeRequest",
+        "type": "object"
+      },
+      "BatchRunRequest": {
+        "properties": {
+          "concurrency": {
+            "anyOf": [
+              {
+                "maximum": 32.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concurrency"
+          },
+          "horizons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Defaults to 7,14,30 when omitted",
+            "title": "Horizons"
+          },
+          "pair_limit": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair Limit"
+          },
+          "window_days": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Days"
+          }
+        },
+        "title": "BatchRunRequest",
+        "type": "object"
+      },
+      "BatchRunResponse": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "enqueued": {
+            "title": "Enqueued",
+            "type": "boolean"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "enqueued"
+        ],
+        "title": "BatchRunResponse",
+        "type": "object"
+      },
+      "ComponentPrediction": {
+        "properties": {
+          "model_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Confidence"
+          },
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_type": {
+            "title": "Model Type",
+            "type": "string"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "model_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Weight"
+          },
+          "p10": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P10"
+          },
+          "p50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50"
+          },
+          "p90": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90"
+          },
+          "prediction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction"
+          }
+        },
+        "required": [
+          "model_name",
+          "model_type"
+        ],
+        "title": "ComponentPrediction",
+        "type": "object"
+      },
+      "CreateNotificationRequest": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "userId": {
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "type",
+          "title",
+          "message"
+        ],
+        "title": "CreateNotificationRequest",
+        "type": "object"
+      },
+      "CreateReportRequest": {
+        "properties": {
+          "catatan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catatan"
+          },
+          "commodityId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commodityid"
+          },
+          "commodityKode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commoditykode"
+          },
+          "harga": {
+            "title": "Harga",
+            "type": "number"
+          },
+          "kecamatan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kecamatan"
+          },
+          "kota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kota"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "namaPasar": {
+            "title": "Namapasar",
+            "type": "string"
+          },
+          "regionId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regionid"
+          },
+          "regionKode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regionkode"
+          },
+          "satuan": {
+            "title": "Satuan",
+            "type": "string"
+          },
+          "tanggal": {
+            "title": "Tanggal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "harga",
+          "satuan",
+          "namaPasar",
+          "tanggal"
+        ],
+        "title": "CreateReportRequest",
+        "type": "object"
+      },
+      "DetectDuplicateRequest": {
+        "properties": {
+          "commodityId": {
+            "title": "Commodityid",
+            "type": "integer"
+          },
+          "regionId": {
+            "title": "Regionid",
+            "type": "integer"
+          },
+          "tanggal": {
+            "title": "Tanggal",
+            "type": "string"
+          },
+          "userId": {
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "commodityId",
+          "regionId",
+          "tanggal"
+        ],
+        "title": "DetectDuplicateRequest",
+        "type": "object"
+      },
+      "DriverImpact": {
+        "properties": {
+          "feature": {
+            "title": "Feature",
+            "type": "string"
+          },
+          "impact": {
+            "title": "Impact",
+            "type": "number"
+          }
+        },
+        "required": [
+          "feature",
+          "impact"
+        ],
+        "title": "DriverImpact",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "description": "Pesan error yang aman ditampilkan kepada client.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ForecastPointSchema": {
+        "properties": {
+          "components": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ComponentPrediction"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "confidence_score": {
+            "title": "Confidence Score",
+            "type": "number"
+          },
+          "model_contribution": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "default": {},
+            "title": "Model Contribution",
+            "type": "object"
+          },
+          "p10": {
+            "title": "P10",
+            "type": "number"
+          },
+          "p50": {
+            "title": "P50",
+            "type": "number"
+          },
+          "p90": {
+            "title": "P90",
+            "type": "number"
+          },
+          "risk_level": {
+            "title": "Risk Level",
+            "type": "string"
+          },
+          "target_date": {
+            "format": "date",
+            "title": "Target Date",
+            "type": "string"
+          },
+          "top_drivers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DriverImpact"
+            },
+            "title": "Top Drivers",
+            "type": "array"
+          },
+          "yhat": {
+            "title": "Yhat",
+            "type": "number"
+          },
+          "yhat_lower": {
+            "title": "Yhat Lower",
+            "type": "number"
+          },
+          "yhat_upper": {
+            "title": "Yhat Upper",
+            "type": "number"
+          }
+        },
+        "required": [
+          "target_date",
+          "yhat",
+          "yhat_lower",
+          "yhat_upper",
+          "p10",
+          "p50",
+          "p90",
+          "risk_level",
+          "confidence_score"
+        ],
+        "title": "ForecastPointSchema",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InflationForecastPointSchema": {
+        "properties": {
+          "components": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ComponentPrediction"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "confidence_score": {
+            "title": "Confidence Score",
+            "type": "number"
+          },
+          "horizon_months": {
+            "title": "Horizon Months",
+            "type": "integer"
+          },
+          "model_contribution": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "default": {},
+            "title": "Model Contribution",
+            "type": "object"
+          },
+          "p10": {
+            "title": "P10",
+            "type": "number"
+          },
+          "p50": {
+            "title": "P50",
+            "type": "number"
+          },
+          "p90": {
+            "title": "P90",
+            "type": "number"
+          },
+          "risk_level": {
+            "title": "Risk Level",
+            "type": "string"
+          },
+          "target_date": {
+            "format": "date",
+            "title": "Target Date",
+            "type": "string"
+          },
+          "top_drivers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DriverImpact"
+            },
+            "title": "Top Drivers",
+            "type": "array"
+          },
+          "yhat": {
+            "title": "Yhat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "target_date",
+          "horizon_months",
+          "yhat",
+          "p10",
+          "p50",
+          "p90",
+          "risk_level",
+          "confidence_score"
+        ],
+        "title": "InflationForecastPointSchema",
+        "type": "object"
+      },
+      "InflationForecastRequest": {
+        "properties": {
+          "horizons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Months ahead; defaults to 1,3,6",
+            "title": "Horizons"
+          },
+          "region_id": {
+            "description": "dim_region.id (use national id for headline inflation)",
+            "title": "Region Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "region_id"
+        ],
+        "title": "InflationForecastRequest",
+        "type": "object"
+      },
+      "InflationForecastResponse": {
+        "properties": {
+          "horizons": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Horizons",
+            "type": "array"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/InflationForecastPointSchema"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "region_id": {
+            "title": "Region Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "region_id",
+          "horizons",
+          "model_version",
+          "points"
+        ],
+        "title": "InflationForecastResponse",
+        "type": "object"
+      },
+      "MarkReadRequest": {
+        "properties": {
+          "all": {
+            "default": false,
+            "title": "All",
+            "type": "boolean"
+          },
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          }
+        },
+        "title": "MarkReadRequest",
+        "type": "object"
+      },
+      "MarketRow": {
+        "properties": {
+          "alamat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alamat"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "kode_pasar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kode Pasar"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "nama_pasar": {
+            "title": "Nama Pasar",
+            "type": "string"
+          },
+          "region_id": {
+            "title": "Region Id",
+            "type": "integer"
+          },
+          "tipe_pasar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipe Pasar"
+          }
+        },
+        "required": [
+          "id",
+          "region_id",
+          "nama_pasar",
+          "is_active"
+        ],
+        "title": "MarketRow",
+        "type": "object"
+      },
+      "MarketUpdateRequest": {
+        "properties": {
+          "alamat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alamat"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "kode_pasar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kode Pasar"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "nama_pasar": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nama Pasar"
+          },
+          "tipe_pasar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipe Pasar"
+          }
+        },
+        "title": "MarketUpdateRequest",
+        "type": "object"
+      },
+      "MarketUpsertRequest": {
+        "properties": {
+          "alamat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alamat"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "kode_pasar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kode Pasar"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "nama_pasar": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Nama Pasar",
+            "type": "string"
+          },
+          "region_id": {
+            "title": "Region Id",
+            "type": "integer"
+          },
+          "tipe_pasar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipe Pasar"
+          }
+        },
+        "required": [
+          "region_id",
+          "nama_pasar"
+        ],
+        "title": "MarketUpsertRequest",
+        "type": "object"
+      },
+      "ModelRegisterRequest": {
+        "properties": {
+          "artifact_path": {
+            "title": "Artifact Path",
+            "type": "string"
+          },
+          "feature_set_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Set Version"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon"
+          },
+          "is_active": {
+            "default": false,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics"
+          },
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_type": {
+            "title": "Model Type",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          },
+          "training_end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training End Date"
+          },
+          "training_start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training Start Date"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_name",
+          "model_type",
+          "target_type",
+          "version",
+          "artifact_path"
+        ],
+        "title": "ModelRegisterRequest",
+        "type": "object"
+      },
+      "ModelRegistryRow": {
+        "properties": {
+          "artifact_path": {
+            "title": "Artifact Path",
+            "type": "string"
+          },
+          "feature_set_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Set Version"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics"
+          },
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_type": {
+            "title": "Model Type",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "model_name",
+          "model_type",
+          "target_type",
+          "version",
+          "artifact_path",
+          "is_active"
+        ],
+        "title": "ModelRegistryRow",
+        "type": "object"
+      },
+      "PriceForecastRequest": {
+        "properties": {
+          "commodity_id": {
+            "description": "dim_commodity.id",
+            "title": "Commodity Id",
+            "type": "integer"
+          },
+          "horizon": {
+            "default": 7,
+            "description": "Horizon hari ke depan",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Horizon",
+            "type": "integer"
+          },
+          "region_id": {
+            "description": "dim_region.id",
+            "title": "Region Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "commodity_id",
+          "region_id"
+        ],
+        "title": "PriceForecastRequest",
+        "type": "object"
+      },
+      "PriceForecastResponse": {
+        "properties": {
+          "commodity_id": {
+            "title": "Commodity Id",
+            "type": "integer"
+          },
+          "horizon": {
+            "title": "Horizon",
+            "type": "integer"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastPointSchema"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "region_id": {
+            "title": "Region Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "commodity_id",
+          "region_id",
+          "horizon",
+          "model_version",
+          "points"
+        ],
+        "title": "PriceForecastResponse",
+        "type": "object"
+      },
+      "RetrainEnqueueResponse": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "enqueued": {
+            "title": "Enqueued",
+            "type": "boolean"
+          },
+          "stream_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Id"
+          }
+        },
+        "required": [
+          "enqueued"
+        ],
+        "title": "RetrainEnqueueResponse",
+        "type": "object"
+      },
+      "RetrainRequest": {
+        "properties": {
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "extra_args": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Args"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon"
+          },
+          "model_type": {
+            "description": "lightgbm | prophet | sarimax | tft | ensemble",
+            "title": "Model Type",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "run_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Name"
+          },
+          "target_type": {
+            "default": "price",
+            "title": "Target Type",
+            "type": "string"
+          },
+          "train_window_days": {
+            "anyOf": [
+              {
+                "minimum": 14.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Window Days"
+          }
+        },
+        "required": [
+          "model_type"
+        ],
+        "title": "RetrainRequest",
+        "type": "object"
+      },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest",
+        "type": "object"
+      },
+      "TrainingRunRow": {
+        "properties": {
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics"
+          },
+          "model_type": {
+            "title": "Model Type",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "run_name": {
+            "title": "Run Name",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          },
+          "train_end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train End Date"
+          },
+          "train_start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Start Date"
+          }
+        },
+        "required": [
+          "id",
+          "run_name",
+          "model_type",
+          "target_type",
+          "status"
+        ],
+        "title": "TrainingRunRow",
+        "type": "object"
+      },
+      "UpdateProfileRequest": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "UpdateProfileRequest",
+        "type": "object"
+      },
+      "UpdateReportRequest": {
+        "properties": {
+          "rejectionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejectionnote"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "UpdateReportRequest",
+        "type": "object"
+      },
+      "UpdateStreakRequest": {
+        "properties": {
+          "userId": {
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "title": "UpdateStreakRequest",
+        "type": "object"
+      },
+      "UpsertPointsRequest": {
+        "properties": {
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reportId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reportid"
+          },
+          "userId": {
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "points",
+          "reason"
+        ],
+        "title": "UpsertPointsRequest",
+        "type": "object"
+      },
+      "ValidateRequest": {
+        "properties": {
+          "commodityId": {
+            "title": "Commodityid",
+            "type": "integer"
+          },
+          "harga": {
+            "title": "Harga",
+            "type": "number"
+          },
+          "regionId": {
+            "title": "Regionid",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "commodityId",
+          "regionId",
+          "harga"
+        ],
+        "title": "ValidateRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "FirebaseBearer": {
+        "bearerFormat": "JWT",
+        "description": "Firebase ID token. Masukkan token saja; Swagger UI otomatis menambahkan prefix `Bearer`.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "email": "team@inflasi.id",
+      "name": "INFLASI Team",
+      "url": "https://inflasi.id/"
+    },
+    "description": "\nBackend gateway untuk platform pemantauan inflasi pangan Indonesia.\nMenyajikan data harga, prediksi multi-horizon, deteksi anomali, dan crowdsourcing\nlaporan harga di atas PostgreSQL + TimescaleDB, dengan ML ensemble diserve oleh\nservice `ml-gateway` (LightGBM / Prophet / SARIMAX / TFT / Stacking).\n\n## Autentikasi\n\nEndpoint publik (read-only) tidak memerlukan token. Endpoint user (reports,\nnotifications, gamification) dan admin (`/admin/*`) memerlukan **Firebase ID\ntoken** di header:\n\n```\nAuthorization: Bearer <FIREBASE_ID_TOKEN>\n```\n\nKlik tombol **Authorize** di kanan atas untuk inject token ke semua endpoint\nsaat mencoba. Role-based access (ADMIN / GOVERNMENT_ANALYST / CONTRIBUTOR /\nREPORTER) di-resolve di Postgres berdasarkan `firebase_uid`.\n\n## Forecasting v2\n\n`POST /api/forecast/price` mengembalikan quantile forecast (p10/p50/p90),\nrisk level, top drivers, dan kontribusi tiap base-model. Versi model di-stamp\ndari `model_registry` (lihat `/api/admin/models`). Persist ke\n`analytics_forecast` + `forecast_model_components`.\n\n## Data Sources\n\n| Sumber | Layer | Frekuensi |\n|--------|-------|-----------|\n| PIHPS Bank Indonesia | `fact_price_daily` | Harian |\n| BPS | `fact_inflation_monthly` | Bulanan |\n| BMKG | `fact_climate` | Harian |\n| BAPANAS | `fact_supply_stock` | Harian |\n| FAO Food Price Index | `ext_fao_food_price` | Bulanan |\n| World Bank Commodities | `ext_commodity_price` | Bulanan |\n| EIA Energy | `ext_energy_price` | Harian |\n| BI JISDOR / ECB | `ext_exchange_rate`, `fact_macro_driver` | Harian |\n| GSCPI | `ext_supply_chain_index` | Bulanan |\n\n## Konvensi\n\n- Semua tanggal: ISO 8601 (`YYYY-MM-DD`).\n- Mata uang: IDR.\n- Error: `{\"detail\": \"<message>\"}` dengan status code HTTP standar\n  (400 invalid body, 401 unauth, 403 forbidden, 404 not found, 422 validation,\n  500 internal).\n- Pagination: `?limit=&offset=` di endpoint list.\n",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "summary": "Food-inflation monitoring + forecasting backend (FastAPI + TimescaleDB + ml-gateway).",
+    "title": "INFLASI API",
+    "version": "0.2.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/admin/models": {
+      "get": {
+        "operationId": "list_models_api_admin_models_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "model_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "horizon",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelRegistryRow"
+                  },
+                  "title": "Response List Models Api Admin Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "List Models",
+        "tags": [
+          "admin-models"
+        ]
+      },
+      "post": {
+        "operationId": "register_model_api_admin_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelRegistryRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Register Model",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/active": {
+      "get": {
+        "operationId": "list_active_api_admin_models_active_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "model_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "horizon",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelRegistryRow"
+                  },
+                  "title": "Response List Active Api Admin Models Active Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "List Active",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/batch-run": {
+      "post": {
+        "description": "Enqueue a `batch_forecast` run on the Redis stream.\n\nReturns 202-ish semantics: the request just publishes — the worker\nprocesses asynchronously. Inspect `job:batch_forecast:{job_id}` for status.",
+        "operationId": "trigger_batch_forecast_api_admin_models_batch_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Trigger Batch Forecast",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/batch-run/{job_id}": {
+      "get": {
+        "operationId": "get_batch_run_status_api_admin_models_batch_run__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Batch Run Status Api Admin Models Batch Run  Job Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Get Batch Run Status",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/retrain": {
+      "post": {
+        "description": "Enqueue a retraining run for `model_type` (and optional horizon).\n\nSpawns the trainer subprocess inside the api-gateway pod. Audit row is\nwritten to `model_training_runs`; status mirror lives in\n`job:retrain:{run_id}` once the worker picks it up.",
+        "operationId": "trigger_retrain_api_admin_models_retrain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrainRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrainEnqueueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Trigger Retrain",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/training-runs": {
+      "get": {
+        "operationId": "list_training_runs_api_admin_models_training_runs_get",
+        "parameters": [
+          {
+            "description": "RUNNING | SUCCESS | FAILED | SKIPPED",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "RUNNING | SUCCESS | FAILED | SKIPPED",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrainingRunRow"
+                  },
+                  "title": "Response List Training Runs Api Admin Models Training Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "List Training Runs",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/training-runs/{run_id}/job-status": {
+      "get": {
+        "operationId": "get_training_run_job_status_api_admin_models_training_runs__run_id__job_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Training Run Job Status Api Admin Models Training Runs  Run Id  Job Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Get Training Run Job Status",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/admin/models/{model_id}/promote": {
+      "post": {
+        "operationId": "promote_model_api_admin_models__model_id__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelRegistryRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Promote Model",
+        "tags": [
+          "admin-models"
+        ]
+      }
+    },
+    "/api/ai/context/dashboard": {
+      "get": {
+        "description": "Gather all dashboard data for AI chat context.",
+        "operationId": "dashboard_context_api_ai_context_dashboard_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Dashboard Context",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/ai/context/search": {
+      "post": {
+        "description": "Search for commodity data based on query.",
+        "operationId": "search_context_api_ai_context_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Context",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/alerts/active": {
+      "get": {
+        "description": "Get daftar alert aktif.",
+        "operationId": "get_active_alerts_api_alerts_active_get",
+        "parameters": [
+          {
+            "description": "info|warning|critical",
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "info|warning|critical",
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Active Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/alerts/generate": {
+      "post": {
+        "description": "Jalankan alert engine untuk tanggal tertentu.",
+        "operationId": "generate_alerts_api_alerts_generate_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/alerts/{alert_id}/resolve": {
+      "post": {
+        "description": "Resolve (tutup) alert tertentu.",
+        "operationId": "resolve_alert_api_alerts__alert_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Alert",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/analytics/calculate": {
+      "post": {
+        "description": "Jalankan kalkulasi harian (perubahan harga, risk score, dll).",
+        "operationId": "run_daily_calculation_api_analytics_calculate_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Daily Calculation",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/commodities/ranking": {
+      "get": {
+        "description": "Ranking komoditas berdasarkan perubahan harga.",
+        "operationId": "get_commodity_ranking_api_analytics_commodities_ranking_get",
+        "parameters": [
+          {
+            "description": "weekly_change|daily_change|volatility",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "weekly_change",
+              "description": "weekly_change|daily_change|volatility",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Commodity Ranking",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/model-performance": {
+      "get": {
+        "description": "MAE / MAPE / p10-p90 coverage per (model_version, horizon) over a window.\n\nReads stored forecasts and joins to `fact_price_daily` for actuals — the\nsame computation as the nightly `evaluate_forecasts` task, exposed as a\nread API for the dashboard's quality chart.",
+        "operationId": "get_model_performance_api_analytics_model_performance_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window_days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Window Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_type",
+            "required": false,
+            "schema": {
+              "default": "price",
+              "title": "Target Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model Performance",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/prices/changes": {
+      "get": {
+        "description": "Hitung perubahan harga harian/mingguan/bulanan.",
+        "operationId": "get_price_changes_api_analytics_prices_changes_get",
+        "parameters": [
+          {
+            "description": "Kode komoditas",
+            "in": "query",
+            "name": "commodity_code",
+            "required": true,
+            "schema": {
+              "description": "Kode komoditas",
+              "title": "Commodity Code",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Kode wilayah",
+            "in": "query",
+            "name": "region_code",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "description": "Kode wilayah",
+              "title": "Region Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Price Changes",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/prices/volatility": {
+      "get": {
+        "description": "Hitung volatilitas harga (Coefficient of Variation).",
+        "operationId": "get_volatility_api_analytics_prices_volatility_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "commodity_code",
+            "required": true,
+            "schema": {
+              "title": "Commodity Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "region_code",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "title": "Region Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": 14,
+              "title": "Window",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Volatility",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/regions/ranking": {
+      "get": {
+        "description": "Ranking wilayah berdasarkan tekanan harga.",
+        "operationId": "get_region_ranking_api_analytics_regions_ranking_get",
+        "parameters": [
+          {
+            "description": "pressure|risk_score",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "pressure",
+              "description": "pressure|risk_score",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Region Ranking",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/risk-scores": {
+      "get": {
+        "description": "Get risk scores untuk semua komoditas-wilayah.",
+        "operationId": "get_risk_scores_api_analytics_risk_scores_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Risk Scores",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "Return the current user's app profile (role/region live in Postgres, not the token).\n\nThe web/Android client calls this right after Firebase sign-in to learn the\nuser's role; the user row is created on first call if it doesn't exist yet.",
+        "operationId": "me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Me Api Auth Me Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/blog": {
+      "get": {
+        "description": "List published blog posts (newest first).",
+        "operationId": "list_blog_posts_api_blog_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Blog Posts",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
+    "/api/blog/": {
+      "get": {
+        "description": "List published blog posts (newest first).",
+        "operationId": "list_blog_posts_api_blog__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Blog Posts",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
+    "/api/blog/generate": {
+      "post": {
+        "description": "Manually trigger generation for a date (defaults to today).",
+        "operationId": "generate_blog_post_api_blog_generate_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Blog Post",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
+    "/api/blog/{slug}": {
+      "get": {
+        "description": "Fetch a single published blog post by slug.",
+        "operationId": "get_blog_post_api_blog__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Blog Post",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
+    "/api/commodities/": {
+      "get": {
+        "operationId": "list_commodities_api_commodities__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "mvp",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Mvp",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Commodities",
+        "tags": [
+          "commodities"
+        ]
+      }
+    },
+    "/api/commodities/ranking": {
+      "get": {
+        "operationId": "commodity_ranking_api_commodities_ranking_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "weekly_change",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commodity Ranking",
+        "tags": [
+          "commodities"
+        ]
+      }
+    },
+    "/api/drivers/analysis": {
+      "get": {
+        "description": "Analyze price drivers for a commodity-region pair.",
+        "operationId": "get_driver_analysis_api_drivers_analysis_get",
+        "parameters": [
+          {
+            "description": "Kode komoditas, e.g. CABAI_RAWIT",
+            "in": "query",
+            "name": "commodity",
+            "required": true,
+            "schema": {
+              "description": "Kode komoditas, e.g. CABAI_RAWIT",
+              "title": "Commodity",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Kode wilayah",
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "description": "Kode wilayah",
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Driver Analysis",
+        "tags": [
+          "drivers"
+        ]
+      }
+    },
+    "/api/forecast/dataset/export": {
+      "get": {
+        "description": "Stream `feature_store_daily` as CSV (compatible with unified_ready_dataset).",
+        "operationId": "export_dataset_api_forecast_dataset_export_get",
+        "parameters": [
+          {
+            "description": "train | val | test (omit = all)",
+            "in": "query",
+            "name": "split",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "train | val | test (omit = all)",
+              "title": "Split"
+            }
+          },
+          {
+            "in": "query",
+            "name": "commodity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Commodity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Region"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD",
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD",
+              "title": "Start"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD",
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD",
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Dataset",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/forecast/feature-row": {
+      "get": {
+        "description": "Return a single `feature_store_daily` row — for ML inspector / debugging.",
+        "operationId": "get_feature_row_api_forecast_feature_row_get",
+        "parameters": [
+          {
+            "description": "Kode komoditas",
+            "in": "query",
+            "name": "commodity",
+            "required": true,
+            "schema": {
+              "description": "Kode komoditas",
+              "title": "Commodity",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Kode wilayah",
+            "in": "query",
+            "name": "region",
+            "required": true,
+            "schema": {
+              "description": "Kode wilayah",
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tanggal YYYY-MM-DD",
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "description": "Tanggal YYYY-MM-DD",
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feature Row",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/forecast/inflation": {
+      "post": {
+        "description": "Monthly headline-inflation forecast (MoM) for M+1, M+3, M+6.\n\nPersists each horizon to `analytics_forecast` with `target_type='inflation'`\nand `commodity_id=0` (inflation is region-scoped, not commodity-scoped).",
+        "operationId": "forecast_inflation_api_forecast_inflation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InflationForecastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InflationForecastResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forecast Inflation",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/forecast/price": {
+      "post": {
+        "description": "Quantile price forecast (p10/p50/p90) with risk + driver explanation.\n\nPersists to `analytics_forecast` + `forecast_model_components`. Reads the\nactive model version from `model_registry` when registered; otherwise stamps\na deterministic placeholder. Matches the spec in\ndocs/INFLASI_ID_Backend_Database_Plan_Updated.md §11.1.",
+        "operationId": "forecast_price_v2_api_forecast_price_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceForecastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceForecastResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forecast Price V2",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/forecast/prices": {
+      "get": {
+        "description": "Forecast values for a commodity-region pair, joined with ground-truth targets.\n\nResponse includes `actual` price + `target_h7/h14/h30` (supervised labels)\npulled from `feature_store_daily`, plus accuracy metrics computed over the\nlast 30 days.",
+        "operationId": "get_forecast_prices_api_forecast_prices_get",
+        "parameters": [
+          {
+            "description": "Kode komoditas, e.g. bawang_merah",
+            "in": "query",
+            "name": "commodity",
+            "required": true,
+            "schema": {
+              "description": "Kode komoditas, e.g. bawang_merah",
+              "title": "Commodity",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Kode wilayah",
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "description": "Kode wilayah",
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Horizon prediksi (7, 14, atau 30)",
+            "in": "query",
+            "name": "horizon",
+            "required": false,
+            "schema": {
+              "default": 14,
+              "description": "Horizon prediksi (7, 14, atau 30)",
+              "title": "Horizon",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Forecast Prices",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/forecast/run": {
+      "post": {
+        "description": "Trigger forecast computation for one or all commodities.",
+        "operationId": "run_forecast_api_forecast_run_post",
+        "parameters": [
+          {
+            "description": "Kode komoditas (kosong = semua)",
+            "in": "query",
+            "name": "commodity_code",
+            "required": false,
+            "schema": {
+              "description": "Kode komoditas (kosong = semua)",
+              "title": "Commodity Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "horizon",
+            "required": false,
+            "schema": {
+              "default": 14,
+              "title": "Horizon",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Forecast",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/gamification/award-badge": {
+      "post": {
+        "description": "Award a badge to user. Idempotent — returns existing if already awarded.",
+        "operationId": "award_badge_api_gamification_award_badge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwardBadgeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Award Badge",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/api/gamification/leaderboard": {
+      "get": {
+        "operationId": "leaderboard_api_gamification_leaderboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leaderboard",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/api/gamification/update-streak": {
+      "post": {
+        "description": "Update user's daily reporting streak.",
+        "operationId": "update_streak_api_gamification_update_streak_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStreakRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Streak",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/api/gamification/upsert-points": {
+      "post": {
+        "description": "Add points to user. Creates UserPoints record if not exists.",
+        "operationId": "upsert_points_api_gamification_upsert_points_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertPointsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Points",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/api/gamification/user-badges": {
+      "get": {
+        "description": "Get the current user's earned badges.",
+        "operationId": "get_user_badges_api_gamification_user_badges_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Get User Badges",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/api/gamification/user-points": {
+      "get": {
+        "description": "Get the current user's gamification points.",
+        "operationId": "get_user_points_api_gamification_user_points_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Get User Points",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/api/global-signals/": {
+      "get": {
+        "operationId": "global_signals_api_global_signals__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Global Signals",
+        "tags": [
+          "global-signals"
+        ]
+      }
+    },
+    "/api/health/db-stats": {
+      "get": {
+        "operationId": "db_stats_api_health_db_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Db Stats",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/inflation/headline": {
+      "get": {
+        "operationId": "headline_inflation_api_inflation_headline_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Headline Inflation",
+        "tags": [
+          "inflation"
+        ]
+      }
+    },
+    "/api/inflation/series": {
+      "get": {
+        "description": "Last N months of national headline inflation (oldest → newest).",
+        "operationId": "inflation_series_api_inflation_series_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 60,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inflation Series",
+        "tags": [
+          "inflation"
+        ]
+      }
+    },
+    "/api/insights/generate": {
+      "post": {
+        "description": "Generate insight baru.",
+        "operationId": "generate_insight_api_insights_generate_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tipe",
+            "required": false,
+            "schema": {
+              "default": "harian",
+              "title": "Tipe",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Insight",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
+    "/api/insights/latest": {
+      "get": {
+        "description": "Get insight terbaru.",
+        "operationId": "get_latest_insight_api_insights_latest_get",
+        "parameters": [
+          {
+            "description": "harian|mingguan",
+            "in": "query",
+            "name": "tipe",
+            "required": false,
+            "schema": {
+              "default": "harian",
+              "description": "harian|mingguan",
+              "title": "Tipe",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Latest Insight",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
+    "/api/intelligence/comparison": {
+      "get": {
+        "operationId": "cross_region_comparison_api_intelligence_comparison_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "commodity",
+            "required": false,
+            "schema": {
+              "title": "Commodity",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cross Region Comparison",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/api/intelligence/price-gap": {
+      "get": {
+        "operationId": "price_gap_api_intelligence_price_gap_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Price Gap",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/api/intelligence/volatility": {
+      "get": {
+        "operationId": "volatility_ranking_api_intelligence_volatility_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Volatility Ranking",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/api/internal/models/active": {
+      "get": {
+        "description": "Return the single active model row for the given slot.\n\nReturns 404 when no active model is registered; callers should treat that as\n\"this model isn't available yet\" and degrade gracefully.",
+        "operationId": "get_active_model_api_internal_models_active_get",
+        "parameters": [
+          {
+            "description": "lightgbm | prophet | sarimax | tft | ensemble | stacking",
+            "in": "query",
+            "name": "model_type",
+            "required": true,
+            "schema": {
+              "description": "lightgbm | prophet | sarimax | tft | ensemble | stacking",
+              "title": "Model Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_type",
+            "required": false,
+            "schema": {
+              "default": "price",
+              "title": "Target Type",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required for horizon-scoped models (lightgbm/tft)",
+            "in": "query",
+            "name": "horizon",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required for horizon-scoped models (lightgbm/tft)",
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Active Model Api Internal Models Active Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Active Model",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/api/markets": {
+      "get": {
+        "operationId": "list_markets_api_markets_get",
+        "parameters": [
+          {
+            "description": "dim_region.id",
+            "in": "query",
+            "name": "region_id",
+            "required": true,
+            "schema": {
+              "description": "dim_region.id",
+              "title": "Region Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "active_only",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Active Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MarketRow"
+                  },
+                  "title": "Response List Markets Api Markets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Markets",
+        "tags": [
+          "markets"
+        ]
+      },
+      "post": {
+        "operationId": "create_or_update_market_api_markets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Create Or Update Market",
+        "tags": [
+          "markets"
+        ]
+      }
+    },
+    "/api/markets/resolve": {
+      "get": {
+        "description": "Cheap probe used by the report-create form to pre-fill `market_id`.\n\nReturns the match (with score + method) or `{\"match\": null}` on miss.\nNever auto-creates — validation pipeline owns that decision.",
+        "operationId": "resolve_market_api_markets_resolve_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "region_id",
+            "required": true,
+            "schema": {
+              "title": "Region Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "nama_pasar",
+            "required": true,
+            "schema": {
+              "minLength": 2,
+              "title": "Nama Pasar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resolve Market Api Markets Resolve Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Market",
+        "tags": [
+          "markets"
+        ]
+      }
+    },
+    "/api/markets/{market_id}": {
+      "patch": {
+        "operationId": "patch_market_api_markets__market_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market_id",
+            "required": true,
+            "schema": {
+              "title": "Market Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Patch Market",
+        "tags": [
+          "markets"
+        ]
+      }
+    },
+    "/api/notifications/": {
+      "get": {
+        "operationId": "list_notifications_api_notifications__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "List Notifications",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "post": {
+        "operationId": "create_notification_api_notifications__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Notification",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/count": {
+      "get": {
+        "operationId": "unread_count_api_notifications_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Unread Count",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/mark-read": {
+      "patch": {
+        "operationId": "mark_read_api_notifications_mark_read_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Mark Read",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/prices/daily": {
+      "get": {
+        "operationId": "daily_prices_api_prices_daily_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "commodity",
+            "required": false,
+            "schema": {
+              "title": "Commodity",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Daily Prices",
+        "tags": [
+          "prices"
+        ]
+      }
+    },
+    "/api/prices/list": {
+      "get": {
+        "operationId": "list_prices_api_prices_list_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "commodity",
+            "required": false,
+            "schema": {
+              "title": "Commodity",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Prices",
+        "tags": [
+          "prices"
+        ]
+      }
+    },
+    "/api/prices/trends": {
+      "get": {
+        "operationId": "price_trends_api_prices_trends_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "commodity",
+            "required": true,
+            "schema": {
+              "title": "Commodity",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "00",
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 90,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Price Trends",
+        "tags": [
+          "prices"
+        ]
+      }
+    },
+    "/api/recommendations/": {
+      "get": {
+        "description": "Get redistribution recommendations based on supply-demand analysis.",
+        "operationId": "get_recommendations_api_recommendations__get",
+        "parameters": [
+          {
+            "description": "Tanggal acuan (default: hari ini)",
+            "in": "query",
+            "name": "tanggal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tanggal acuan (default: hari ini)",
+              "title": "Tanggal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recommendations",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/api/regions/": {
+      "get": {
+        "operationId": "list_regions_api_regions__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "title": "Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "active",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Active",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Regions",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/api/regions/heatmap": {
+      "get": {
+        "operationId": "region_heatmap_api_regions_heatmap_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Region Heatmap",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/api/reports/": {
+      "get": {
+        "operationId": "list_reports_api_reports__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "commodityId",
+            "required": false,
+            "schema": {
+              "title": "Commodityid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "title": "Regionid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Reports",
+        "tags": [
+          "reports"
+        ]
+      },
+      "post": {
+        "operationId": "create_report_api_reports__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Create Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/reports/detect-duplicate": {
+      "post": {
+        "description": "Check if user already submitted a report for the same commodity+region+date.",
+        "operationId": "detect_duplicate_api_reports_detect_duplicate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectDuplicateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Duplicate",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/reports/my": {
+      "get": {
+        "operationId": "my_reports_api_reports_my_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "My Reports",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/reports/stats": {
+      "get": {
+        "operationId": "report_stats_api_reports_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Report Stats",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/reports/validate": {
+      "post": {
+        "description": "Validate report price against recent median for the same commodity+region.",
+        "operationId": "validate_report_api_reports_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/reports/{report_id}": {
+      "get": {
+        "operationId": "get_report_api_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "reports"
+        ]
+      },
+      "patch": {
+        "operationId": "update_report_api_reports__report_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Update Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/users/admin/list": {
+      "get": {
+        "operationId": "admin_list_users_api_users_admin_list_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Admin List Users",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/admin/stats": {
+      "get": {
+        "operationId": "admin_stats_api_users_admin_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Admin Stats",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/admin/{user_id}": {
+      "patch": {
+        "operationId": "admin_update_user_api_users_admin__user_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUpdateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Admin Update User",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/me/profile": {
+      "get": {
+        "operationId": "get_my_profile_api_users_me_profile_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Get My Profile",
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "operationId": "update_my_profile_api_users_me_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Update My Profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/{user_id}/profile": {
+      "get": {
+        "operationId": "get_profile_api_users__user_id__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Get Profile",
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "operationId": "update_profile_api_users__user_id__profile_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Update Profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Cek apakah service berjalan. Digunakan oleh Docker healthcheck dan load balancer.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "description": "Endpoint that serves Prometheus metrics.",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics"
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Server saat ini (relative)",
+      "url": "/"
+    },
+    {
+      "description": "Local dev",
+      "url": "http://localhost:8000"
+    },
+    {
+      "description": "Production",
+      "url": "https://api.inflasi.id"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Health check & liveness/readiness probes.",
+      "name": "health"
+    },
+    {
+      "description": "Master wilayah (34 provinsi + agregat nasional). Slug `kode_wilayah` digunakan sebagai foreign-key string di `feature_store_daily`.",
+      "name": "regions"
+    },
+    {
+      "description": "Master komoditas (beras, bawang, cabai, daging, telur, gula, tepung). Includes kategori & satuan.",
+      "name": "commodities"
+    },
+    {
+      "description": "Master pasar (`dim_market`) — normalisasi nama pasar dari laporan crowdsourcing per wilayah.",
+      "name": "markets"
+    },
+    {
+      "description": "Akses `fact_price_daily` — harga harian resmi/agregat. Filter per commodity/region/date range.",
+      "name": "prices"
+    },
+    {
+      "description": "Akses `fact_inflation_monthly` — IHK & inflasi mtm/ytd/yoy per wilayah dan kelompok.",
+      "name": "inflation"
+    },
+    {
+      "description": "Sinyal global: FAO Food Price Index, harga energi (EIA), kurs, GSCPI, harga komoditas dunia.",
+      "name": "global-signals"
+    },
+    {
+      "description": "Agregasi & ringkasan harga: perubahan harian/mingguan/bulanan, volatilitas, ranking komoditas-wilayah.",
+      "name": "analytics"
+    },
+    {
+      "description": "Prediksi harga multi-horizon. `POST /forecast/price` (v2) → quantile p10/p50/p90 + risk level + driver + per-model components. Legacy `GET /forecast/prices` masih tersedia.",
+      "name": "forecast"
+    },
+    {
+      "description": "Analisis faktor penggerak perubahan harga (cuaca anomali, kurs, BBM, supply stock).",
+      "name": "drivers"
+    },
+    {
+      "description": "Peringatan dini — lonjakan harga, deviasi antar-wilayah, supply shortage.",
+      "name": "alerts"
+    },
+    {
+      "description": "Narasi insight auto-generated untuk dashboard (highlight harian/mingguan).",
+      "name": "insights"
+    },
+    {
+      "description": "Endpoint composite untuk dashboard intel — gabungan forecast + risk + driver dalam satu payload.",
+      "name": "intelligence"
+    },
+    {
+      "description": "Rekomendasi aksi (intervensi pasar / pengadaan) berdasarkan risk score dan supply chain index.",
+      "name": "recommendations"
+    },
+    {
+      "description": "AI context endpoints — narasi & ringkasan natural-language siap untuk LLM downstream.",
+      "name": "ai"
+    },
+    {
+      "description": "Sign-in flow via Firebase. Tukar Firebase ID token dengan session user di Postgres.",
+      "name": "auth"
+    },
+    {
+      "description": "Profil user, role management. Endpoint `/admin/list` & `/admin/stats` butuh role ADMIN.",
+      "name": "users"
+    },
+    {
+      "description": "Laporan harga crowdsourcing (`price_reports`). Workflow: submit → validation pipeline → APPROVED/FLAGGED/REJECTED.",
+      "name": "reports"
+    },
+    {
+      "description": "Notifikasi user (alert harga, badge, status laporan).",
+      "name": "notifications"
+    },
+    {
+      "description": "Sistem poin, streak, dan badge untuk kontributor.",
+      "name": "gamification"
+    },
+    {
+      "description": "Model registry — list, register, promote ke active. Wajib role ADMIN atau GOVERNMENT_ANALYST. Promosi mengaktifkan satu model per slot `(model_type, target_type, horizon)`; versi yang sebelumnya active otomatis dinonaktifkan.",
+      "name": "admin-models"
+    },
+    {
+      "description": "Endpoint service-to-service (dipanggil ml-gateway / worker). Tidak ada autentikasi — diasumsikan hanya reachable via ClusterIP / internal network. Jangan expose ke ingress.",
+      "name": "internal"
+    }
+  ],
+  "x-api-audience": [
+    "web",
+    "android",
+    "internal-services"
+  ]
+}

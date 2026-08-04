@@ -120,6 +120,16 @@ docker compose down
 
 Base URL: `http://localhost:8000`
 
+Dokumentasi API tersedia dalam tiga format:
+
+- Swagger UI interaktif: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- OpenAPI JSON: `http://localhost:8000/openapi.json`
+
+Panduan autentikasi Firebase, penggunaan Swagger, dan export contract tersedia di
+[`docs/SWAGGER.md`](docs/SWAGGER.md). Artifact [`docs/openapi.json`](docs/openapi.json) dapat
+langsung diimpor ke Postman, Insomnia, Swagger Editor, atau OpenAPI Generator.
+
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
 | GET | `/health` | Health check |

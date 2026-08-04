@@ -8,6 +8,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import router as api_router
 from app.core.redis import close_redis
+from app.openapi import install_openapi
 from app.workers.forecast_batch_worker import ForecastBatchWorker
 from app.workers.refresh_worker import RefreshWorker
 from app.workers.retrain_worker import RetrainWorker
@@ -212,6 +213,10 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
+
+# Enrich FastAPI's generated contract with Firebase auth and common errors.
+# Both /docs and scripts/export_openapi.py consume this exact same schema.
+install_openapi(app)
 
 # Prometheus metrics at /metrics (scraped by inflasi-monitoring).
 Instrumentator().instrument(app).expose(app)

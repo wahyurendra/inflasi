@@ -20,7 +20,15 @@ from app.models.tables import User
 
 logger = logging.getLogger("inflasi-api")
 
-_bearer_scheme = HTTPBearer(auto_error=False)
+_bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="FirebaseBearer",
+    bearerFormat="JWT",
+    description=(
+        "Firebase ID token. Masukkan token saja; Swagger UI otomatis "
+        "menambahkan prefix `Bearer`."
+    ),
+)
 
 
 async def _user_from_token(
