@@ -1,7 +1,7 @@
 """Train Temporal Fusion Transformer with QuantileLoss([0.1, 0.5, 0.9]).
 
 Requires the GPU image (``Dockerfile.gpu`` — installs torch + lightning +
-pytorch-forecasting). Saves the best checkpoint to MinIO and registers
+pytorch-forecasting). Saves the best checkpoint to GCS and registers
 ``model_type='tft'`` with ``horizon=<horizon>``.
 """
 

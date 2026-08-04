@@ -4,9 +4,9 @@ Reads via the api-gateway's CSV export endpoint (no direct DB access from this
 package), pivots the wide ``target_h{7,14,30}`` columns into one long parquet
 per horizon, applies :func:`encoder.encode_codes` to fill any missing *_code
 columns (idempotent — feature_builder already wrote them at materialization
-time), and uploads to MinIO at ``datasets/train_ready_h{horizon}.parquet``.
+time), and uploads to GCS at ``gs://train-ml/datasets/train_ready_h{horizon}.parquet``.
 
-Run as a K8s Job; expects MinIO + api-gateway env vars.
+Run as a K8s Job; expects GCS ADC + api-gateway env vars.
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ import pandas as pd
 
 from ml.training.common import (
     TrainingConfig,
-    get_minio_client,
     save_metrics_local,
     setup_logging,
+    upload_file,
 )
 from ml.training.encoder import encode_codes
 
@@ -57,9 +57,7 @@ def upload_parquet(cfg: TrainingConfig, df: pd.DataFrame, horizon: int) -> str:
     local.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(local, index=False)
     key = f"datasets/train_ready_h{horizon}.parquet"
-    client = get_minio_client(cfg)
-    client.fput_object(cfg.minio_datasets_bucket, key, str(local))
-    return key
+    return upload_file(cfg, local, key)
 
 
 def main() -> None:
@@ -77,7 +75,7 @@ def main() -> None:
     for h in args.horizons:
         df = to_horizon_parquet(raw, h)
         key = upload_parquet(cfg, df, h)
-        summary[str(h)] = {"rows": int(len(df)), "minio_key": key}
+        summary[str(h)] = {"rows": int(len(df)), "gcs_uri": key}
         logger.info("uploaded h=%s → %s (%s rows)", h, key, len(df))
 
     save_metrics_local(summary, Path(cfg.local_cache) / "export_summary.json")

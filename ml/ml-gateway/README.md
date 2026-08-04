@@ -3,6 +3,9 @@
 One FastAPI service for all ML workloads, on a single A100 (CPU-fallback when no GPU).
 **Stateless** — callers pass the data series in the request; no DB connection.
 
+Model artifacts are loaded lazily from `gs://train-ml` using Application Default Credentials and
+cached under `MODEL_CACHE_DIR`. See [`../README.md`](../README.md) for GCS configuration and IAM.
+
 ## Endpoints
 | Route | Purpose | Compute |
 |---|---|---|

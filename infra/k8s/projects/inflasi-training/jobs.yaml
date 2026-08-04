@@ -2,7 +2,7 @@
 # since these are Jobs, not CronJobs; use `kubectl apply -f` then delete after).
 #
 # Order: export → lightgbm → prophet → sarimax → tft (GPU node only) → ensemble.
-# Each Job uploads to MinIO + POSTs to /api/v1/admin/models. Promotion to
+# Each Job uploads to gs://train-ml + POSTs to /api/v1/admin/models. Promotion to
 # is_active is a separate operator step (POST /admin/models/{id}/promote).
 #
 # CI bumps the image tag on this file when ml/training/** changes.
@@ -20,6 +20,7 @@ spec:
     metadata:
       labels: { app: inflasi-training, component: export }
     spec:
+      serviceAccountName: inflasi-training
       restartPolicy: OnFailure
       imagePullSecrets: [{ name: ghcr-secret }]
       containers:
@@ -28,12 +29,10 @@ spec:
           imagePullPolicy: Always
           args: ["ml.training.export_dataset"]
           envFrom:
-            - secretRef: { name: inflasi-minio-secret }   # MINIO_ROOT_USER/PASSWORD
-            - secretRef: { name: inflasi-training-secret } # MINIO_ACCESS_KEY/SECRET_KEY/ADMIN_FIREBASE_TOKEN
+            - secretRef: { name: inflasi-training-secret } # ADMIN_FIREBASE_TOKEN
           env:
             - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
-            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
-            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
             - { name: MODEL_VERSION, value: "v1" }
           resources:
             requests: { cpu: "500m", memory: "2Gi" }
@@ -52,6 +51,7 @@ spec:
     metadata:
       labels: { app: inflasi-training, component: lightgbm }
     spec:
+      serviceAccountName: inflasi-training
       restartPolicy: OnFailure
       imagePullSecrets: [{ name: ghcr-secret }]
       containers:
@@ -63,8 +63,7 @@ spec:
             - secretRef: { name: inflasi-training-secret }
           env:
             - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
-            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
-            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
             - { name: MODEL_VERSION, value: "v1" }
           resources:
             requests: { cpu: "1",  memory: "4Gi" }
@@ -83,6 +82,7 @@ spec:
     metadata:
       labels: { app: inflasi-training, component: prophet }
     spec:
+      serviceAccountName: inflasi-training
       restartPolicy: OnFailure
       imagePullSecrets: [{ name: ghcr-secret }]
       containers:
@@ -94,8 +94,7 @@ spec:
             - secretRef: { name: inflasi-training-secret }
           env:
             - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
-            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
-            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
             - { name: MODEL_VERSION, value: "v1" }
           resources:
             requests: { cpu: "1",  memory: "4Gi" }
@@ -114,6 +113,7 @@ spec:
     metadata:
       labels: { app: inflasi-training, component: sarimax }
     spec:
+      serviceAccountName: inflasi-training
       restartPolicy: OnFailure
       imagePullSecrets: [{ name: ghcr-secret }]
       containers:
@@ -125,8 +125,7 @@ spec:
             - secretRef: { name: inflasi-training-secret }
           env:
             - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
-            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
-            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
             - { name: MODEL_VERSION, value: "v1" }
           resources:
             requests: { cpu: "1",  memory: "4Gi" }
@@ -148,6 +147,7 @@ spec:
     metadata:
       labels: { app: inflasi-training, component: tft }
     spec:
+      serviceAccountName: inflasi-training
       restartPolicy: OnFailure
       imagePullSecrets: [{ name: ghcr-secret }]
       runtimeClassName: nvidia
@@ -166,8 +166,7 @@ spec:
             - secretRef: { name: inflasi-training-secret }
           env:
             - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
-            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
-            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
             - { name: MODEL_VERSION, value: "v1" }
           resources:
             requests: { cpu: "2", memory: "8Gi", "nvidia.com/gpu": "1" }
@@ -186,6 +185,7 @@ spec:
     metadata:
       labels: { app: inflasi-training, component: ensemble }
     spec:
+      serviceAccountName: inflasi-training
       restartPolicy: OnFailure
       imagePullSecrets: [{ name: ghcr-secret }]
       containers:
@@ -197,8 +197,7 @@ spec:
             - secretRef: { name: inflasi-training-secret }
           env:
             - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
-            - { name: MINIO_ENDPOINT, value: "inflasi-minio:9000" }
-            - { name: MINIO_BUCKET, value: "inflasi-models" }
+            - { name: GCS_BUCKET, value: "train-ml" }
             - { name: MODEL_VERSION, value: "v1" }
           resources:
             requests: { cpu: "1", memory: "2Gi" }
