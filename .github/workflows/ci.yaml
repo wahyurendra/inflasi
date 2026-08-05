@@ -68,6 +68,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python -m compileall -q app run_etl.py run_analytics.py alembic
+          python -m unittest discover -s tests
+          ANALYTICS_DATABASE_URL='postgresql+asyncpg://test:test@localhost:5432/test' \
+            python scripts/export_openapi.py --check
 
   ml:
     needs: changes
@@ -95,7 +98,10 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile training modules
-        run: python -m compileall -q ml/training apps/api-gateway/app/services/feature_encoder.py
+        run: |
+          pip install "numpy>=1.26" "pandas>=2.2" "httpx>=0.27"
+          python -m compileall -q ml/training apps/api-gateway/app/services/feature_encoder.py
+          python -m unittest discover -s ml/training/tests
 
   build-push-api:
     needs: [changes, api]

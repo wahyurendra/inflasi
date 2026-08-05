@@ -34,12 +34,13 @@ spec:
               image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.export_dataset"]
-              envFrom:
-                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
                 - { name: MODEL_VERSION, value: "v1" }
+                - name: TRAINING_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: inflasi-training-service-secret, key: TRAINING_SERVICE_TOKEN, optional: true }
               resources:
                 requests: { cpu: "500m", memory: "2Gi" }
                 limits: { cpu: "4", memory: "8Gi" }
@@ -72,12 +73,13 @@ spec:
               image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_lightgbm", "--horizon", "7"]
-              envFrom:
-                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
                 - { name: MODEL_VERSION, value: "v1" }
+                - name: TRAINING_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: inflasi-training-service-secret, key: TRAINING_SERVICE_TOKEN, optional: true }
               resources:
                 requests: { cpu: "1", memory: "4Gi" }
                 limits: { cpu: "8", memory: "16Gi" }
@@ -110,12 +112,13 @@ spec:
               image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_prophet", "--horizon", "7", "--max-series", "30"]
-              envFrom:
-                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
                 - { name: MODEL_VERSION, value: "v1" }
+                - name: TRAINING_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: inflasi-training-service-secret, key: TRAINING_SERVICE_TOKEN, optional: true }
               resources:
                 requests: { cpu: "1", memory: "4Gi" }
                 limits: { cpu: "4", memory: "8Gi" }
@@ -148,12 +151,13 @@ spec:
               image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_sarimax", "--horizon", "7", "--max-series", "30"]
-              envFrom:
-                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
                 - { name: MODEL_VERSION, value: "v1" }
+                - name: TRAINING_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: inflasi-training-service-secret, key: TRAINING_SERVICE_TOKEN, optional: true }
               resources:
                 requests: { cpu: "1", memory: "4Gi" }
                 limits: { cpu: "4", memory: "8Gi" }
@@ -196,12 +200,13 @@ spec:
               image: ghcr.io/wahyurendra/inflasi-training-gpu:latest
               imagePullPolicy: Always
               args: ["ml.training.train_tft", "--horizon", "7"]
-              envFrom:
-                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
                 - { name: MODEL_VERSION, value: "v1" }
+                - name: TRAINING_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: inflasi-training-service-secret, key: TRAINING_SERVICE_TOKEN, optional: true }
               resources:
                 requests: { cpu: "2", memory: "8Gi", "nvidia.com/gpu": "1" }
                 limits: { cpu: "8", memory: "24Gi", "nvidia.com/gpu": "1" }
@@ -234,12 +239,13 @@ spec:
               image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_ensemble", "--horizon", "7"]
-              envFrom:
-                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
                 - { name: MODEL_VERSION, value: "v1" }
+                - name: TRAINING_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: inflasi-training-service-secret, key: TRAINING_SERVICE_TOKEN, optional: true }
               resources:
                 requests: { cpu: "1", memory: "2Gi" }
                 limits: { cpu: "4", memory: "8Gi" }

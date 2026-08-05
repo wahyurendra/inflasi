@@ -49,5 +49,5 @@ router.include_router(ai_context.router, prefix="/ai", tags=["ai"])
 # Admin
 router.include_router(admin_models.router, prefix="/admin/models", tags=["admin-models"])
 
-# Internal — service-to-service (ml-gateway), no auth, ClusterIP only.
+# Internal — ClusterIP only; write operations require a training service token.
 router.include_router(internal_models.router, prefix="/internal/models", tags=["internal"])

@@ -1,6 +1,6 @@
 """Pydantic schemas for the v2 forecast API.
 
-`PriceForecastRequest` matches the spec's POST /api/v1/forecast/price body.
+`PriceForecastRequest` matches the app's POST /api/forecast/price body.
 `PriceForecastResponse` carries point + p10/p50/p90 + risk + drivers + components.
 """
 

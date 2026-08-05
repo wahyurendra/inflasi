@@ -31,7 +31,7 @@ logger = logging.getLogger("training.export_dataset")
 
 
 def fetch_feature_store_csv(cfg: TrainingConfig) -> pd.DataFrame:
-    url = f"{cfg.api_gateway_url.rstrip('/')}/api/v1/forecast/dataset/export"
+    url = f"{cfg.api_gateway_url.rstrip('/')}/api/forecast/dataset/export"
     with httpx.Client(timeout=600.0) as client:
         resp = client.get(url)
         resp.raise_for_status()

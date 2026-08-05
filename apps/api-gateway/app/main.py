@@ -111,9 +111,9 @@ tags_metadata = [
     {
         "name": "internal",
         "description": (
-            "Endpoint service-to-service (dipanggil ml-gateway / worker). Tidak "
-            "ada autentikasi — diasumsikan hanya reachable via ClusterIP / "
-            "internal network. Jangan expose ke ingress."
+            "Endpoint service-to-service (dipanggil ml-gateway / training). "
+            "Lookup model aktif hanya melalui ClusterIP; registrasi model wajib "
+            "header X-Training-Token. Jangan expose ke ingress."
         ),
     },
 ]

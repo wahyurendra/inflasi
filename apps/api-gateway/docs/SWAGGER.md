@@ -38,7 +38,9 @@ Respons umum untuk endpoint terproteksi:
 - `422`: path, query, atau request body tidak lolos validasi FastAPI/Pydantic.
 
 Endpoint bertag `internal` tidak memakai autentikasi aplikasi dan hanya boleh diekspos melalui
-jaringan internal/ClusterIP.
+jaringan internal/ClusterIP. Pengecualian untuk operasi tulis registrasi model:
+`POST /api/internal/models` wajib menerima `X-Training-Token` yang sama dengan
+Kubernetes Secret `inflasi-training-service-secret`.
 
 ## Menghasilkan kontrak statis
 
