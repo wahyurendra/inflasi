@@ -16,5 +16,6 @@ spec:
     - infra/k8s/projects/inflasi-api
     - infra/k8s/projects/inflasi-web
     - infra/k8s/projects/inflasi-ml
+    - infra/k8s/projects/inflasi-training
     - infra/k8s/projects/inflasi-monitoring
   clientSecretName: github-repo-secret

@@ -30,7 +30,8 @@ spec:
           effect: NoSchedule
       containers:
         - name: ml-gateway
-          image: ghcr.io/wahyurendra/inflasi-ml-gpu:0.0.0
+          # Bootstrap tag; CD replaces this with the immutable 12-char commit SHA.
+          image: ghcr.io/wahyurendra/inflasi-ml-gpu:latest
           imagePullPolicy: Always
           ports:
             - { containerPort: 8080, name: http }
