@@ -40,6 +40,12 @@ spec:
           env:
             - name: FIREBASE_CREDENTIALS_FILE
               value: /secrets/firebase-sa.json
+            - name: TRAINING_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: inflasi-training-service-secret
+                  key: TRAINING_SERVICE_TOKEN
+                  optional: true
           volumeMounts:
             - name: firebase-sa
               mountPath: /secrets

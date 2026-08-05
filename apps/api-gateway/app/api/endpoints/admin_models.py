@@ -1,7 +1,7 @@
 """Admin endpoints for the model registry.
 
 Spec ref: docs/INFLASI_ID_Backend_Database_Plan_Updated.md §11.3.
-Mounted at /api/v1/admin/models. Requires ADMIN or GOVERNMENT_ANALYST role.
+Mounted at /api/admin/models. Requires ADMIN or GOVERNMENT_ANALYST role.
 """
 
 from __future__ import annotations

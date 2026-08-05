@@ -4183,6 +4183,66 @@
         ]
       }
     },
+    "/api/internal/models": {
+      "post": {
+        "description": "Register an artifact produced by a Kubernetes training Job.",
+        "operationId": "register_model_from_training_api_internal_models_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Training-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Training-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelRegistryRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Model From Training",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
     "/api/internal/models/active": {
       "get": {
         "description": "Return the single active model row for the given slot.\n\nReturns 404 when no active model is registered; callers should treat that as\n\"this model isn't available yet\" and degrade gracefully.",
@@ -5847,7 +5907,7 @@
       "name": "admin-models"
     },
     {
-      "description": "Endpoint service-to-service (dipanggil ml-gateway / worker). Tidak ada autentikasi — diasumsikan hanya reachable via ClusterIP / internal network. Jangan expose ke ingress.",
+      "description": "Endpoint service-to-service (dipanggil ml-gateway / training). Lookup model aktif hanya melalui ClusterIP; registrasi model wajib header X-Training-Token. Jangan expose ke ingress.",
       "name": "internal"
     }
   ],

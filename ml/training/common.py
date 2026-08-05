@@ -3,7 +3,7 @@
 Mirrors the helper functions in the user's notebook so the training scripts read
 like simplified versions of it. Each ``train_*.py`` reads a parquet from GCS
 (or the local cache), trains its model, writes the artifact(s) back to GCS,
-then POSTs to ``/api/v1/admin/models`` to register the new version. Promotion to
+then POSTs to ``/api/internal/models`` to register the new version. Promotion to
 ``is_active = true`` is a separate operator step (avoid auto-promote until
 backtest confirms).
 """
@@ -251,9 +251,9 @@ def register_model(
     horizon: int | None = None,
     metrics: dict | None = None,
     feature_set_version: str | None = None,
-    admin_token: str | None = None,
+    service_token: str | None = None,
 ) -> dict | None:
-    """POST to ``/api/v1/admin/models``. Requires an ADMIN-role Firebase token.
+    """POST to the internal registry using the stable training service token.
 
     Returns the created row or ``None`` on failure (logged). Promotion to
     ``is_active`` is intentionally a separate operator step.
@@ -270,11 +270,15 @@ def register_model(
         "feature_set_version": feature_set_version,
         "metrics": metrics,
     }
-    headers: dict[str, str] = {}
-    token = admin_token or os.environ.get("ADMIN_FIREBASE_TOKEN", "")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    url = f"{cfg.api_gateway_url.rstrip('/')}/api/v1/admin/models"
+    token = service_token or os.environ.get("TRAINING_SERVICE_TOKEN", "")
+    if not token:
+        logger.error(
+            "TRAINING_SERVICE_TOKEN missing; artifact remains in GCS at %s",
+            artifact_path,
+        )
+        return None
+    headers = {"X-Training-Token": token}
+    url = f"{cfg.api_gateway_url.rstrip('/')}/api/internal/models"
     try:
         with httpx.Client(timeout=15.0) as client:
             resp = client.post(url, json=payload, headers=headers)
