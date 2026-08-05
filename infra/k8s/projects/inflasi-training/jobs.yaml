@@ -35,7 +35,7 @@ spec:
               imagePullPolicy: Always
               args: ["ml.training.export_dataset"]
               envFrom:
-                - secretRef: { name: inflasi-training-secret }
+                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
@@ -73,7 +73,7 @@ spec:
               imagePullPolicy: Always
               args: ["ml.training.train_lightgbm", "--horizon", "7"]
               envFrom:
-                - secretRef: { name: inflasi-training-secret }
+                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
@@ -111,7 +111,7 @@ spec:
               imagePullPolicy: Always
               args: ["ml.training.train_prophet", "--horizon", "7", "--max-series", "30"]
               envFrom:
-                - secretRef: { name: inflasi-training-secret }
+                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
@@ -149,7 +149,7 @@ spec:
               imagePullPolicy: Always
               args: ["ml.training.train_sarimax", "--horizon", "7", "--max-series", "30"]
               envFrom:
-                - secretRef: { name: inflasi-training-secret }
+                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
@@ -197,7 +197,7 @@ spec:
               imagePullPolicy: Always
               args: ["ml.training.train_tft", "--horizon", "7"]
               envFrom:
-                - secretRef: { name: inflasi-training-secret }
+                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
@@ -235,7 +235,7 @@ spec:
               imagePullPolicy: Always
               args: ["ml.training.train_ensemble", "--horizon", "7"]
               envFrom:
-                - secretRef: { name: inflasi-training-secret }
+                - secretRef: { name: inflasi-training-secret, optional: true }
               env:
                 - { name: API_GATEWAY_URL, value: "http://inflasi-api:8080" }
                 - { name: GCS_BUCKET, value: "train-ml" }
