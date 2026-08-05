@@ -31,7 +31,7 @@ spec:
       containers:
         - name: ml-gateway
           # Bootstrap tag; CD replaces this with the immutable 12-char commit SHA.
-          image: ghcr.io/wahyurendra/inflasi-ml-gpu:latest
+          image: ghcr.io/wahyurendra/inflasi-ml-gpu:bc59dc834652
           imagePullPolicy: Always
           ports:
             - { containerPort: 8080, name: http }
