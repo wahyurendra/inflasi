@@ -24,14 +24,14 @@ spec:
         - name: ghcr-secret
       initContainers:
         - name: migrate
-          image: ghcr.io/wahyurendra/inflasi-api:7be7ffc7de28
+          image: ghcr.io/wahyurendra/inflasi-api:7637de2e2c8c
           imagePullPolicy: Always
           command: ["alembic", "upgrade", "head"]
           envFrom:
             - secretRef: { name: inflasi-secret }
       containers:
         - name: api
-          image: ghcr.io/wahyurendra/inflasi-api:7be7ffc7de28
+          image: ghcr.io/wahyurendra/inflasi-api:7637de2e2c8c
           imagePullPolicy: Always
           ports:
             - { containerPort: 8001, name: http }
