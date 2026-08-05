@@ -31,10 +31,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: f
         with:
-          # Compare against main so feature branches detect ALL changes vs main
-          # (default behaviour compares to previous commit on same branch, which
-          # misses everything on the branch except the last commit).
-          base: main
+          # Default comparison uses the previous commit for pushes to main.
           filters: |
             web: 'apps/web/**'
             api: 'apps/api-gateway/**'
@@ -75,7 +72,9 @@ jobs:
 
   deploy:
     needs: changes
-    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.ml == 'true' || needs.changes.outputs.training == 'true'
+    # Fleet watches main. Building/bumping a feature branch would create an
+    # image that Rancher never deploys, so deployment is intentionally main-only.
+    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.ml == 'true' || needs.changes.outputs.training == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: write

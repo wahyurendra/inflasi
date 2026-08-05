@@ -31,7 +31,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: trainer
-              image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+              image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.export_dataset"]
               envFrom:
@@ -69,7 +69,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: trainer
-              image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+              image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_lightgbm", "--horizon", "7"]
               envFrom:
@@ -107,7 +107,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: trainer
-              image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+              image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_prophet", "--horizon", "7", "--max-series", "30"]
               envFrom:
@@ -145,7 +145,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: trainer
-              image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+              image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_sarimax", "--horizon", "7", "--max-series", "30"]
               envFrom:
@@ -193,7 +193,7 @@ spec:
               effect: NoSchedule
           containers:
             - name: trainer
-              image: ghcr.io/wahyurendra/inflasi-training-gpu:0.0.0
+              image: ghcr.io/wahyurendra/inflasi-training-gpu:latest
               imagePullPolicy: Always
               args: ["ml.training.train_tft", "--horizon", "7"]
               envFrom:
@@ -231,7 +231,7 @@ spec:
           imagePullSecrets: [{ name: ghcr-secret }]
           containers:
             - name: trainer
-              image: ghcr.io/wahyurendra/inflasi-training:0.0.0
+              image: ghcr.io/wahyurendra/inflasi-training:latest
               imagePullPolicy: Always
               args: ["ml.training.train_ensemble", "--horizon", "7"]
               envFrom:

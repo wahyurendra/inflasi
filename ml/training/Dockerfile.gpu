@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ml/training/requirements.txt ml/training/requirements-gpu.txt /tmp/
-RUN pip install -r /tmp/requirements.txt -r /tmp/requirements-gpu.txt
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && python -m pip install --no-cache-dir \
+      -r /tmp/requirements.txt -r /tmp/requirements-gpu.txt
 
 COPY ml/training/ /workspace/ml/training/
 COPY apps/api-gateway/app/services/feature_encoder.py /workspace/apps/api-gateway/app/services/feature_encoder.py
